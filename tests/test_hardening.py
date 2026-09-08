@@ -189,5 +189,55 @@ class TestRuleRegistry(unittest.TestCase):
         self.assertTrue(all(r.action == HD.BLOCK for r in HD.rules_for(action=HD.BLOCK)))
 
 
+
+class TestEvidenceRedaction(unittest.TestCase):
+    """A scanner that prints the secret it found turns one exposure into two."""
+
+    SECRET = "zrLStQf5RS1GxqpTwZJO6goLKUL8iNuVK1UYtuVvraY"
+    TOKENV = "ghp_" + "A" * 36
+    WIF = "5J" + "a" * 46
+
+    def test_password_value_is_never_in_evidence(self):
+        v = HD.scan_file("agent/keys/fleet_keys.meta.json",
+                         '{"pass": "%s"}' % self.SECRET)
+        self.assertTrue(v)
+        for x in v:
+            self.assertNotIn(self.SECRET, x.evidence, x.rid)
+            self.assertNotIn(self.SECRET, x.as_dict()["evidence"], x.rid)
+
+    def test_token_value_is_never_in_evidence(self):
+        v = HD.scan_file("scripts/push.sh", "T='%s'" % self.TOKENV)
+        for x in v:
+            self.assertNotIn(self.TOKENV, x.evidence, x.rid)
+
+    def test_private_key_is_never_in_evidence(self):
+        v = HD.scan_file("src/k.ts", "const WIF='%s';" % self.WIF)
+        for x in v:
+            self.assertNotIn(self.WIF, x.evidence, x.rid)
+
+    def test_secret_still_reports_where_it_is(self):
+        v = HD.scan_file("agent/keys/fleet_keys.meta.json", '{"pass": "%s"}' % self.SECRET)
+        h08 = [x for x in v if x.rid == "H-08"]
+        self.assertTrue(h08)
+        self.assertIn("line 1", h08[0].evidence)
+        self.assertIn("pass", h08[0].evidence)
+        self.assertIn(HD.REDACTED, h08[0].evidence)
+
+    def test_redaction_does_not_touch_non_secret_rules(self):
+        v = HD.scan_file("src/a.ts", "window.localStorage.setItem(k,v)")
+        h01 = [x for x in v if x.rid == "H-01"]
+        self.assertTrue(h01)
+        self.assertIn("localStorage", h01[0].evidence)
+
+    def test_full_verdict_is_secret_free(self):
+        import json as _json
+        files = dict(FIXTURES)
+        files["agent/keys/fleet_keys.meta.json"] = '{ "pass": "%s" }' % self.SECRET
+        files["scripts/push.sh"] = "T='%s'" % self.TOKENV
+        blob = _json.dumps(HD.scan_tree(files, now=NOW))
+        self.assertNotIn(self.SECRET, blob)
+        self.assertNotIn(self.TOKENV, blob)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -149,3 +149,136 @@ saos-dex.anchor.v1 and saos.attest.v1 show ZERO duplicates, so the problem is
 specific to the weave sealer, not systemic.
 
 ---
+
+## Finding 4 - RC per operation, MEASURED from two live snapshots
+
+This was the one number marked UNMEASURED in the previous round. It is now
+measured, from two manabar readings bracketing a known set of operations.
+
+    T1  stored 1,392,041     at last_update 1788870714   -> effective 73,271,489
+    T2  stored 639,081,508   at last_update 1788892086   -> effective 741,291,589
+    dt                       = 21,883 s  (6.08 h)
+    regen over dt            = 59,355 RC/s x 21,883 s = 1,298,875,269 RC
+    IMPLIED NET SPEND        = 73,271,489 + 1,298,875,269 - 741,291,589
+                             = 630,855,168 RC
+
+Operations that landed inside the window (read from account history):
+
+    idx 49737  2026-09-08T13:27:06  custom_json  saos-dex.anchor.v1   385 B
+    idx 49738  2026-09-08T14:23:57  custom_json  saos-dex.anchor.v1   385 B
+    idx 49739  2026-09-08T17:47:03  custom_json  ssc-mainnet-hive     214 B
+    idx 49740  2026-09-08T18:28:09  custom_json  ssc-mainnet-hive     214 B
+
+    4 operations, 1,198 bytes total
+    => 630,855,168 / 4 = 157,713,792 RC per operation (aggregate average)
+    => 526,590 RC per serialised byte if the cost is byte-dominated
+
+### Independent consistency check
+
+    capacity from measured cost = 5.128e9 RC/day / 1.577e8 RC/op = 32.5 ops/day
+    observed op rate            = 100 history entries over 2026-09-05T14:39 to
+                                  2026-09-08T18:28 = 76 h = 3.17 days
+                                = 31.6 ops/day
+
+32.5 predicted against 31.6 observed. **Within 3%.** Two independent
+measurements agree, which is the strongest evidence available without bracketing
+a single operation.
+
+### What this means: the account is RC-saturated
+
+It is not near its budget, it is AT its budget. It is spending essentially its
+entire daily regeneration, which is why the balance sits at a few hundred million
+rather than the 25.6 billion maximum.
+
+That reframes everything. When RC is the binding constraint:
+
+- the convert loop in Finding 1 is not a minor waste, it is 11 of about 32 daily
+  slots spent on nothing - **a third of total capacity**
+- the 9 redundant weave broadcasts are another 28% of a day
+- payload compaction is not a nicety, it directly buys capacity
+- packing 154 roots per operation is not an optimisation, it is the difference
+  between anchoring some seals and anchoring all of them
+
+### What is still not decomposed
+
+4 samples across 2 operation types cannot separate the fixed per-operation
+component from the byte-proportional component. The aggregate is solid; the split
+is not. One bracketed sample around a single operation of known size fixes it.
+`freeops.RcCalibration` implements exactly that and refuses to emit a split
+without it.
+
+---
+
+## Finding 5 - 97% of the free payload budget is unused
+
+Measured across every anchor in the history:
+
+| protocol | samples | min | max | avg | % of 8192 | headroom | batching field |
+|---|---|---|---|---|---|---|---|
+| saos-dex.anchor.v1 | 23 | 247 | 250 | 248.9 | **3.04%** | **32.9x** | none |
+| saos.weave.v1 | 11 | 218 | 218 | 218.0 | **2.66%** | **37.6x** | count/from/to present |
+
+The weave verdict from the detector, verbatim:
+
+    batching schema present but unused
+
+Every one of the 11 weave seals carries count = 1. The protocol was designed to
+commit a range of leaves under one root and every single use commits one.
+
+---
+
+## What they are already doing right
+
+Worth stating, because it is easy to only report failures.
+
+- saos.attest.v1 commits a git commit hash to the chain. Code provenance, free,
+  permanent, publicly verifiable. That is a genuinely good use of the primitive.
+- saos.id.v1 binds a HIVE account to an EVM address with an EIP-191 signature.
+  Cross-chain identity, free, and the signature makes it non-repudiable.
+- saos value_lock uses POSTING authority. Correct least privilege, already in
+  production.
+- saos.weave.v1 has a batching schema. The right design, just not exercised.
+- The Hive-Engine calls correctly use ACTIVE, because they move tokens. The
+  authority model is understood - it is just applied inconsistently.
+
+---
+
+## Priority actions, ranked by RC recovered per unit of effort
+
+| # | action | effort | RC recovered | other gain |
+|---|---|---|---|---|
+| 1 | **Stop the hive.convert 9.632 loop** | kill one retry | ~1.73e9 already burned; ~34% of daily capacity ongoing | stops an actively running leak |
+| 2 | **Add an idempotency guard to the weave sealer** | one map lookup | ~1.42e9 (9 redundant broadcasts) | removes duplicate on-chain records |
+| 3 | **Sign attestations with POSTING, not ACTIVE** | swap two fields in buildOp | 0 | removes fund-moving capability from 4 automated broadcasters |
+| 4 | **Fix the RC manabar projection** | one formula | 0 direct | HIVE stops reporting falsely blocked; 52.6x more RC becomes visible to the gate |
+| 5 | **Set weave count above 1 - pack up to 154 roots** | use the schema that already exists | up to 37.6x fewer operations for the same commitments | every seal anchorable within budget |
+| 6 | **Drop digest and at, use tier-E encoding** | payload builder | 4.9x fewer bytes per anchor | removes two fields that were wrong, not merely wasteful |
+| 7 | Calibrate RC per operation with one bracketed sample | one measurement | - | splits fixed from variable cost; makes pricing exact |
+| 8 | Resolve SOL verified = 0 | investigate | - | 27 claimed anchors, 0 verified - the ledger is untrustworthy until explained |
+
+Actions 1, 2, 3 and 4 require no capital, no protocol change and no new
+dependency. Together they recover roughly 60% of daily RC capacity and remove a
+critical key exposure.
+
+---
+
+## Reproducing every number here
+
+    python -m unittest tests.test_liveops -v
+
+21 assertions run against the committed mainnet fixture. The detectors that
+produced these findings are in src/jumpper/liveops.py:
+
+    normalise()                     both account-history shapes
+    inventory()                     protocol census by custom_json id
+    audit_authority_by_protocol()   least privilege, per protocol, value-moving excluded
+    find_repeat_loops()             identical operations repeated
+    estimate_loop_waste()           refuses a guessed RC cost
+    duplicate_seal_audit()          same root and seq broadcast more than once
+    packing_headroom()              budget utilisation and unused batching fields
+
+Full suite: 137 tests, green from a fresh clone.
+
+---
+
+*Read-only throughout. No keys read, no transactions signed, nothing broadcast.*

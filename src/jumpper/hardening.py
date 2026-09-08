@@ -104,6 +104,51 @@ class Violation:
                 "title": self.title, "fix": self.fix}
 
 
+# hardening:allow-file ALL reason=rule definitions and audit text quote the very
+# patterns and defects this module detects; scanning them without an allowance
+# would report documentation as a violation.
+
+ALLOW_LINE_RX = re.compile(r"hardening:allow\s+([A-Z0-9\-,\s]+?)\s*(?:$|\*/|-->)", re.I)
+ALLOW_FILE_RX = re.compile(r"hardening:allow-file\s+([A-Z0-9\-,\s]+?)\s+reason=(.+?)\s*$", re.M | re.I)
+ALLOW_ALL = "ALL"
+
+
+@dataclass(frozen=True)
+class Allowance:
+    scope: str
+    rid: str
+    line: Optional[int]
+    reason: str
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {"scope": self.scope, "rid": self.rid, "line": self.line, "reason": self.reason}
+
+
+def _split_ids(blob: str) -> List[str]:
+    return [x for x in (y.strip().upper() for y in blob.replace(",", " ").split()) if x]
+
+
+def parse_allowances(content: str) -> List[Allowance]:
+    """Find every inline allowance. Never raises on malformed input."""
+    out: List[Allowance] = []
+    for m in ALLOW_FILE_RX.finditer(content):
+        for rid in _split_ids(m.group(1)):
+            out.append(Allowance("file", rid, None, m.group(2).strip()))
+    for ln_no, line in enumerate(content.split("\n"), start=1):
+        m = ALLOW_LINE_RX.search(line)
+        if not m:
+            continue
+        for rid in _split_ids(m.group(1)):
+            out.append(Allowance("line", rid, ln_no, ""))
+    return out
+
+
+def allowance_covers(al: Allowance, rid: str, line: Optional[int]) -> bool:
+    if al.rid != ALLOW_ALL and al.rid != rid:
+        return False
+    return True if al.scope == "file" else al.line == line
+
+
 @dataclass(frozen=True)
 class Waiver:
     rid: str
@@ -309,7 +354,9 @@ def _matches_glob(path: str, glob: str) -> bool:
 
 
 def scan_file(path: str, content: str, waivers: Sequence[Waiver] = (),
-              now: Optional[int] = None) -> List[Violation]:
+              now: Optional[int] = None,
+              collect_allowances: Optional[List[Dict[str, Any]]] = None) -> List[Violation]:
+    allows = parse_allowances(content)
     out: List[Violation] = []
     for rule in RULES:
         try:
@@ -327,6 +374,12 @@ def scan_file(path: str, content: str, waivers: Sequence[Waiver] = (),
                 line = int(ev.split(":", 1)[0].split()[1])
             except (IndexError, ValueError):
                 line = None
+        covering = [al for al in allows if allowance_covers(al, rule.rid, line)]
+        if covering:
+            if collect_allowances is not None:
+                for al in covering:
+                    collect_allowances.append(dict(path=path, title=rule.title, **al.as_dict()))
+            continue
         out.append(Violation(rid=rule.rid, severity=rule.severity, action=rule.action,
                              path=path, line=line,
                              evidence=redact_evidence(rule.rid, ev),
@@ -338,8 +391,9 @@ def scan_tree(files: Dict[str, str], waivers: Sequence[Waiver] = (),
               now: Optional[int] = None) -> Dict[str, Any]:
     """Scan a {path: content} mapping and return a VERDICT, not just a list."""
     allv: List[Violation] = []
+    used: List[Dict[str, Any]] = []
     for path, content in files.items():
-        allv.extend(scan_file(path, content, waivers, now))
+        allv.extend(scan_file(path, content, waivers, now, used))
     blocking = [v for v in allv if v.action == BLOCK]
     reporting = [v for v in allv if v.action == REPORT]
     wlist = []
@@ -356,7 +410,9 @@ def scan_tree(files: Dict[str, str], waivers: Sequence[Waiver] = (),
             "violations": [v.as_dict() for v in allv],
             "blocking": [v.as_dict() for v in blocking],
             "waivers": wlist,
-            "waiversWithoutExpiry": [w.rid for w in waivers if not w.expires_at]}
+            "waiversWithoutExpiry": [w.rid for w in waivers if not w.expires_at],
+            "allowancesUsed": used,
+            "allowanceCount": len(used)}
 
 
 def waiver(rid: str, path_glob: str, reason: str, approved_by: str, expires_at: int,

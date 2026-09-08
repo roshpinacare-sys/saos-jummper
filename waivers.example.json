@@ -1,0 +1,14 @@
+{
+ "_about": "Waivers are COMMITTED ON PURPOSE. A hidden waiver is a disabled rule.",
+ "_rules": [
+  "rid        - a rule id from src/jumpper/hardening.py (--list-rules to see them)",
+  "pathGlob   - scope. '*' and '**' are REFUSED; a global waiver disables the rule",
+  "reason     - why this is acceptable right now. A ticket reference is expected",
+  "approvedBy - a named human, not 'agent' and not 'auto'",
+  "expiresAt  - unix seconds. MANDATORY. A waiver with no expiry is refused",
+  "createdAt  - unix seconds, written by --waive"
+ ],
+ "_how_to_create": "python scripts/harden-check.py --waive H-07 --glob 'db/*.db' --reason 'ticket SAOS-77' --by owner --days 7",
+ "_note": "Every active waiver is printed in every gate run, valid or not, so nothing is silently suppressed.",
+ "waivers": []
+}

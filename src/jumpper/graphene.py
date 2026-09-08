@@ -161,10 +161,27 @@ def b64u(hexstr: str) -> str:
 
 
 def unb64u(s: str) -> str:
+    """43-char url-safe base64 -> 64-char lowercase hex. Strict.
+
+    base64 discards characters outside its alphabet by default, so "!!!" would
+    silently decode to an empty digest. validate=True plus an exact length check
+    makes malformed input an error instead of a wrong answer.
+    """
+    if not isinstance(s, str) or not s:
+        raise GrapheneError("empty base64url")
     try:
-        return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4)).hex()
-    except Exception as exc:
+        raw = base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))  # placeholder
+    except Exception:
+        raw = b""
+    import binascii
+    try:
+        raw = base64.b64decode((s + "=" * (-len(s) % 4)).replace("-", "+").replace("_", "/"),
+                               validate=True)
+    except (binascii.Error, ValueError) as exc:
         raise GrapheneError("invalid base64url: %s" % exc) from exc
+    if len(raw) != 32:
+        raise GrapheneError("base64url must decode to exactly 32 bytes, got %d" % len(raw))
+    return raw.hex()
 
 
 @dataclass(frozen=True)

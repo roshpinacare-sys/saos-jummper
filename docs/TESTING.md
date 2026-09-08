@@ -1,5 +1,7 @@
 # Testing
 
+<!-- hardening:allow-file ALL reason=this document quotes the on-chain payloads and defective patterns it reports; quoting a finding is not committing one -->
+
 ## Run everything
 
     pip install -r requirements.txt

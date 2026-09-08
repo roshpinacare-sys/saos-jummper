@@ -1,0 +1,262 @@
+{
+  "_comment": "Golden vectors for cross-language validation. Any port (TS/Rust/Go) MUST reproduce these byte-for-byte. Generated, not hand-written.",
+  "version": "1",
+  "canonicalization": [
+    {
+      "input": {
+        "b": 1,
+        "a": [
+          3,
+          {
+            "z": null,
+            "y": -0.0
+          }
+        ]
+      },
+      "output": "{\"a\":[3,{\"y\":0,\"z\":null}],\"b\":1}"
+    },
+    {
+      "input": {
+        "x": 1.0
+      },
+      "output": "{\"x\":1}"
+    },
+    {
+      "input": {
+        "u": "é"
+      },
+      "output": "{\"u\":\"é\"}"
+    },
+    {
+      "input": {
+        "o": {
+          "z": 1,
+          "a": 2
+        }
+      },
+      "output": "{\"o\":{\"a\":2,\"z\":1}}"
+    }
+  ],
+  "merkle": {
+    "leafHashFn": "sha256(utf8(string)) -> lowercase hex",
+    "pairHashFn": "sha256(bytes.fromhex(left) ++ bytes.fromhex(right))",
+    "oddNodeRule": "duplicate the last node; do NOT self-hash",
+    "leaves": [
+      "7704f6622ac1e153683d4014980faf8d4602d77f07274995ec8a01e13eca3c41",
+      "523d9b4b16817aba6c8d35d99c5133bdfaf528a6b556c17105f0eb11ff1a1543",
+      "32436938b4e4d2e091bf6b8e9bd6a5b585d43ede2528f4b0050447a5cc9c4d7d",
+      "cd3e79e7126f0e72b24159f99ea74f1c88b6ab31e6a060885eb1c86dfabea973",
+      "b2408f9dcf602944ee80dfec27f7c4817b6b2a625e57212d3a795d2c71833e28",
+      "5b24eff8ca23505ce67e18aa1a5e1d933d6f994e9ff26511aa9dbcdac87dd3ea",
+      "add687ffe58121330460c50d53c48f0b2fbcbfe50200725a3161331f7a448acf"
+    ],
+    "root": "260c83e20f6b9ad690f06632d5630b4dd7ee94fd374ec3b69927de1ec7a10e12",
+    "levels": [
+      [
+        "7704f6622ac1e153683d4014980faf8d4602d77f07274995ec8a01e13eca3c41",
+        "523d9b4b16817aba6c8d35d99c5133bdfaf528a6b556c17105f0eb11ff1a1543",
+        "32436938b4e4d2e091bf6b8e9bd6a5b585d43ede2528f4b0050447a5cc9c4d7d",
+        "cd3e79e7126f0e72b24159f99ea74f1c88b6ab31e6a060885eb1c86dfabea973",
+        "b2408f9dcf602944ee80dfec27f7c4817b6b2a625e57212d3a795d2c71833e28",
+        "5b24eff8ca23505ce67e18aa1a5e1d933d6f994e9ff26511aa9dbcdac87dd3ea",
+        "add687ffe58121330460c50d53c48f0b2fbcbfe50200725a3161331f7a448acf"
+      ],
+      [
+        "222634c53dbce57935c0932b6f350c2527aa9e9e5803609e23928ace615d1bbd",
+        "4b777e4f27b42d00ec5df882e275cac831407c15f3d3abcffa726c98f8de1d7d",
+        "c83548903b7306e9d5e3f17a11f3f857112b70801b7634e0acce3bb3aa003bb5",
+        "add687ffe58121330460c50d53c48f0b2fbcbfe50200725a3161331f7a448acf"
+      ],
+      [
+        "606cbecb9715a93b54f3a51c52bca260ec6896381857ba1f343a1f6ffe674e72",
+        "798249740059b1fc47531536fd33b189ccacf78375ab76110d1af536432cca9a"
+      ],
+      [
+        "260c83e20f6b9ad690f06632d5630b4dd7ee94fd374ec3b69927de1ec7a10e12"
+      ]
+    ],
+    "proofs": [
+      {
+        "index": 0,
+        "path": [
+          {
+            "sibling": "523d9b4b16817aba6c8d35d99c5133bdfaf528a6b556c17105f0eb11ff1a1543",
+            "dir": "right"
+          },
+          {
+            "sibling": "4b777e4f27b42d00ec5df882e275cac831407c15f3d3abcffa726c98f8de1d7d",
+            "dir": "right"
+          },
+          {
+            "sibling": "798249740059b1fc47531536fd33b189ccacf78375ab76110d1af536432cca9a",
+            "dir": "right"
+          }
+        ]
+      },
+      {
+        "index": 1,
+        "path": [
+          {
+            "sibling": "7704f6622ac1e153683d4014980faf8d4602d77f07274995ec8a01e13eca3c41",
+            "dir": "left"
+          },
+          {
+            "sibling": "4b777e4f27b42d00ec5df882e275cac831407c15f3d3abcffa726c98f8de1d7d",
+            "dir": "right"
+          },
+          {
+            "sibling": "798249740059b1fc47531536fd33b189ccacf78375ab76110d1af536432cca9a",
+            "dir": "right"
+          }
+        ]
+      },
+      {
+        "index": 2,
+        "path": [
+          {
+            "sibling": "cd3e79e7126f0e72b24159f99ea74f1c88b6ab31e6a060885eb1c86dfabea973",
+            "dir": "right"
+          },
+          {
+            "sibling": "222634c53dbce57935c0932b6f350c2527aa9e9e5803609e23928ace615d1bbd",
+            "dir": "left"
+          },
+          {
+            "sibling": "798249740059b1fc47531536fd33b189ccacf78375ab76110d1af536432cca9a",
+            "dir": "right"
+          }
+        ]
+      },
+      {
+        "index": 3,
+        "path": [
+          {
+            "sibling": "32436938b4e4d2e091bf6b8e9bd6a5b585d43ede2528f4b0050447a5cc9c4d7d",
+            "dir": "left"
+          },
+          {
+            "sibling": "222634c53dbce57935c0932b6f350c2527aa9e9e5803609e23928ace615d1bbd",
+            "dir": "left"
+          },
+          {
+            "sibling": "798249740059b1fc47531536fd33b189ccacf78375ab76110d1af536432cca9a",
+            "dir": "right"
+          }
+        ]
+      },
+      {
+        "index": 4,
+        "path": [
+          {
+            "sibling": "5b24eff8ca23505ce67e18aa1a5e1d933d6f994e9ff26511aa9dbcdac87dd3ea",
+            "dir": "right"
+          },
+          {
+            "sibling": "add687ffe58121330460c50d53c48f0b2fbcbfe50200725a3161331f7a448acf",
+            "dir": "right"
+          },
+          {
+            "sibling": "606cbecb9715a93b54f3a51c52bca260ec6896381857ba1f343a1f6ffe674e72",
+            "dir": "left"
+          }
+        ]
+      },
+      {
+        "index": 5,
+        "path": [
+          {
+            "sibling": "b2408f9dcf602944ee80dfec27f7c4817b6b2a625e57212d3a795d2c71833e28",
+            "dir": "left"
+          },
+          {
+            "sibling": "add687ffe58121330460c50d53c48f0b2fbcbfe50200725a3161331f7a448acf",
+            "dir": "right"
+          },
+          {
+            "sibling": "606cbecb9715a93b54f3a51c52bca260ec6896381857ba1f343a1f6ffe674e72",
+            "dir": "left"
+          }
+        ]
+      },
+      {
+        "index": 6,
+        "path": [
+          {
+            "sibling": "c83548903b7306e9d5e3f17a11f3f857112b70801b7634e0acce3bb3aa003bb5",
+            "dir": "left"
+          },
+          {
+            "sibling": "606cbecb9715a93b54f3a51c52bca260ec6896381857ba1f343a1f6ffe674e72",
+            "dir": "left"
+          }
+        ]
+      }
+    ]
+  },
+  "claim": {
+    "domain": "saos-jumpper/claim/v1",
+    "formula": "sha256(utf8(DOMAIN) ++ 0x1f ++ utf8(canonical(payload)) ++ 0x1f ++ utf8(timestamp))",
+    "cases": [
+      {
+        "payload": {
+          "a": 1
+        },
+        "timestamp": "2026-09-08T00:00:00Z",
+        "leafHash": "abea2144d180f1e944dc41938cc1eb91f3121794a46bc2d8f79b731d9e010520"
+      },
+      {
+        "payload": {
+          "b": 2,
+          "a": 1
+        },
+        "timestamp": "2026-01-01T12:34:56.789Z",
+        "leafHash": "b07abff2402ef8d5862bcc134ccb47898b086b61e88f8a39e9ac0cff539dfd1f"
+      },
+      {
+        "payload": {
+          "nested": {
+            "deep": [
+              1,
+              2,
+              {
+                "k": "v"
+              }
+            ]
+          }
+        },
+        "timestamp": "2026-09-08T23:59:59Z",
+        "leafHash": "916437e17d681311386c97324f6d60e87a1d53a2b4f60c760f76ccfaca83dacf"
+      }
+    ]
+  },
+  "anchor": {
+    "gasModel": "gasUsed = 21000 + max(16*nonzero + 4*zero, 10*(zero + 4*nonzero))   [EIP-2028 vs EIP-7623 floor]",
+    "mainnetValidation": {
+      "txid": "0x94f4cb4fc0c50d742a583576b2cb1d14fa55dd99437510bf252a6ccba3e37813",
+      "block": 25929672,
+      "status": "0x1",
+      "calldataBytes": 248,
+      "nonzero": 248,
+      "zero": 0,
+      "tokens": 992,
+      "gasEip2028": 3968,
+      "gasFloor": 9920,
+      "bindingRule": "EIP-7623-floor",
+      "modelGasUsed": 30920,
+      "actualGasUsed": 30920,
+      "gasPriceWei": 1050884809,
+      "modelCostWei": 32493358294280,
+      "actualCostWei": 32493358294280,
+      "modelCostEth": 3.2493358294e-05,
+      "match": true
+    },
+    "payloadCase": {
+      "height": 1,
+      "root": "abababababababababababababababababababababababababababababababab",
+      "leafCount": 1000,
+      "at": "2026-09-08T00:00:00Z",
+      "payload": "{\"protocol\":\"saos-jumpper/v1\",\"action\":\"batch-anchor\",\"height\":1,\"root\":\"abababababababababababababababababababababababababababababababab\",\"leafCount\":1000,\"at\":\"2026-09-08T00:00:00Z\"}",
+      "calldataHex": "0x7b2270726f746f636f6c223a2273616f732d6a756d707065722f7631222c22616374696f6e223a2262617463682d616e63686f72222c22686569676874223a312c22726f6f74223a2261626162616261626162616261626162616261626162616261626162616261626162616261626162616261626162616261626162616261626162616261626162222c226c656166436f756e74223a313030302c226174223a22323032362d30392d30385430303a30303a30305a227d"
+    }
+  }
+}

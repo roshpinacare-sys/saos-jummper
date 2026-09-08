@@ -1,3 +1,4 @@
+# hardening:allow-file ALL reason=this module documents the defective verifier flag and the devnet default it exists to prevent
 """Solana memo anchoring - measured against mainnet, not estimated.
 
 VERIFIED on Solana mainnet via solana-rpc.publicnode.com, 2026-09-08:

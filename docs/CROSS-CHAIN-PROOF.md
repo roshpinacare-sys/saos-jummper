@@ -1,5 +1,7 @@
 # Cross-Chain Proof - the same commitment on two mainnets
 
+<!-- hardening:allow-file ALL reason=quotes the devnet default and the verifier flag it reports -->
+
 U-01 asked whether the 27 Solana anchors landed on mainnet or devnet. Nobody
 could tell, because the ledger records no network identifier and no endpoint host.
 

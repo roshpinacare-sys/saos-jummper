@@ -68,9 +68,34 @@ Sigstore Rekor construction:
   leaf content from either log**
 - `receipt-anchor.ts` - turns an ExecutionReceipt or AuditRecord into a leaf hash
 
-Its odd-node convention - last node promoted, paired with itself - **matches the
-convention in `src/jumpper/merkle.py` exactly.** Two independently written
-implementations agree, so proofs will interoperate.
+### Correction - the two Merkle conventions do NOT match
+
+An earlier revision of this document claimed the kernel's odd-node convention
+matched `src/jumpper/merkle.py`. That claim was taken from the kernel docstring
+and **it was wrong**. Both were then measured:
+
+    n   jumpper (duplicate)   kernel (self-pair)   agree
+    1   4f865c4d94864688      4f865c4d94864688     yes
+    2   455f93bddcf6f4a8      455f93bddcf6f4a8     yes
+    3   053eafcf2870f42d      9b3f589fc85dd651     NO
+    4   7fc2b347c954e2f4      7fc2b347c954e2f4     yes
+    5   ffe4633aaec24ac9      760949d79c265aa6     NO
+    7   7923d411e399c8f0      4ec83977c3b7b232     NO
+    8   a0172cda7f39cee4      a0172cda7f39cee4     yes
+    9   86834162d175ed78      dc2a34c3e2087bfa     NO
+
+Measured rule, verified for n = 1..199 and pinned by tests: the two agree exactly
+when n is 1, 2, or a power of two, and differ otherwise. `jumpper` carries an odd
+last node up unchanged; the kernel hashes it with itself.
+
+Consequence: **roots must be anchored as opaque 32-byte values, and any
+recomputation from leaves must use the producer's convention.** `src/jumpper/sth.py`
+therefore carries the convention explicitly on every signed tree head
+(`duplicate` or `self-pair`), refuses an unknown one rather than guessing, and
+rejects a batch that mixes conventions. 34 assertions cover this.
+
+This is the same failure mode the anchor ledger had - a confident number that was
+never checked. It is corrected here rather than left in the document.
 
 ### Post-quantum hybrid signing
 
@@ -206,15 +231,23 @@ half, measured against live mainnet:
 | custom_json fee | **zero** - the operation has no fee field | 21 real anchors read from HIVE mainnet |
 | payload budget per operation | **8,192 bytes** | live protocol constant |
 | roots per free operation | **154** at 52 bytes per tier-E entry | exact arithmetic, tested |
+| signed tree heads per free operation | **148-177**, depending on tree_size digit width | measured per width, tested at 4 widths x 2 conventions |
 | regeneration budget | **5.13e9 RC/day** for headcorner | live rc_api, max_rc 25,641,553,538 |
 | measured cost per operation | **157.7M RC** | two manabar snapshots 6.08 h apart bracketing 4 known ops |
 | predicted vs observed op rate | **32.5 vs 31.6 per day** | within 3% - two independent measurements agree |
 
-So: **anchor 154 signed tree heads per free operation, about 32 free operations a
-day, roughly 4,900 publicly immutable log heads per day, at zero fee.**
+So: **anchor 148 to 177 signed tree heads per free operation, about 32 free
+operations a day, roughly 4,700 to 5,700 publicly immutable log heads per day, at
+zero fee.**
 
 Enough to anchor every tenant log, every federation anchor, and every witness
 cosignature continuously - and still leave budget for the existing anchors.
+
+An earlier estimate of 181 heads per operation was optimistic: it probed with a
+one-digit tree_size and the shorter convention name. 181 real heads encode to
+8,889 bytes and cannot be broadcast at all. `heads_per_operation` now takes a
+representative head and measures, and `encode_heads` fails closed on the budget so
+an over-estimate can never reach the chain.
 
 Integration is additive and does not touch the kernel's invariants:
 
@@ -222,7 +255,7 @@ Integration is additive and does not touch the kernel's invariants:
               |
               |  signed tree head: {root, treeSize, timestamp, signature}
               v
-    src/jumpper/packing.py    (154 heads per payload, tier-E compact)
+    src/jumpper/sth.py        (148-177 heads per payload, convention-tagged)
               |
               v
     src/jumpper/graphene.py   (custom_json op, POSTING authority, zero fee)

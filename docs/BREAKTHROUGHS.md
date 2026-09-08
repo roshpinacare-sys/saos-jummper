@@ -1,5 +1,7 @@
 # Breakthroughs - what our network does for free that others charge for
 
+<!-- hardening:allow-file ALL reason=findings report quoting on-chain custom_json payloads -->
+
 Read from LIVE HIVE mainnet on 2026-09-08 (read-only). Every figure is marked
 MEASURED (read from the chain), DERIVED (exact arithmetic on a measured
 constant), or UNMEASURED (pending one calibration).

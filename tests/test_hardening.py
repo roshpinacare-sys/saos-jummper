@@ -239,5 +239,54 @@ class TestEvidenceRedaction(unittest.TestCase):
         self.assertNotIn(self.TOKENV, blob)
 
 
+
+class TestInlineAllowances(unittest.TestCase):
+    """A policy engine must be runnable on its own source, and an allowance must
+    never be silent."""
+
+    DEFECT = "window.localStorage.setItem(k, v);"
+
+    def test_line_allowance_on_another_line_does_not_suppress(self):
+        self.assertIn("H-01", {x.rid for x in HD.scan_file("x.ts", "a = 1  # hardening:allow H-01\n" + self.DEFECT)})
+
+    def test_line_allowance_on_the_defect_line_suppresses_it(self):
+        self.assertEqual(HD.scan_file("x.ts", self.DEFECT + "  # hardening:allow H-01"), [])
+
+    def test_file_allowance_suppresses_whole_file(self):
+        src = "hardening:allow-file H-01 reason=documentation quotes the pattern\n" + self.DEFECT
+        self.assertEqual(HD.scan_file("docs/x.md", src), [])
+
+    def test_allowance_never_suppresses_a_different_rule(self):
+        src = ("hardening:allow-file H-01 reason=x\nwindow.localStorage.setItem(k,v);\n"
+               "throw new Error('foo is not implemented');\n")
+        ids = {v.rid for v in HD.scan_file("x.ts", src)}
+        self.assertNotIn("H-01", ids)
+        self.assertIn("H-02", ids)
+
+    def test_all_allowance_is_honoured_and_counted(self):
+        src = "hardening:allow-file ALL reason=rule definitions quote their own patterns\n" + self.DEFECT
+        used = []
+        v = HD.scan_file("src/jumpper/hardening.py", src, collect_allowances=used)
+        self.assertEqual(v, [])
+        self.assertTrue(used)
+        self.assertEqual(used[0]["rid"], "ALL")
+
+    def test_allowances_are_always_listed_in_the_verdict(self):
+        src = "hardening:allow-file H-01 reason=documentation\n" + self.DEFECT
+        r = HD.scan_tree({"docs/x.md": src})
+        self.assertGreaterEqual(r["allowanceCount"], 1)
+        self.assertEqual(r["allowancesUsed"][0]["rid"], "H-01")
+        self.assertIn("documentation", r["allowancesUsed"][0]["reason"])
+        self.assertTrue(r["pass"])
+
+    def test_lowercase_ids_are_normalised(self):
+        self.assertEqual(sorted(x.rid for x in HD.parse_allowances("x  # hardening:allow h-01, H-02")), ["H-01", "H-02"])
+
+    def test_malformed_allowances_are_ignored_not_fatal(self):
+        for bad in ("hardening:allow\n", "hardening:allow-file\n",
+                    "hardening:allow-file H-01\n", "# hardening:allow H-99\n"):
+            HD.scan_file("x.ts", bad + self.DEFECT)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

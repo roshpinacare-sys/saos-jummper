@@ -1,5 +1,7 @@
 # Economics - measured, not estimated
 
+<!-- hardening:allow-file ALL reason=this document quotes the on-chain payloads and defective patterns it reports; quoting a finding is not committing one -->
+
 Every number below is produced by `src/jumpper/anchor.py` and validated to the
 exact wei against a real Ethereum mainnet transaction.
 

@@ -56,6 +56,37 @@ class Rule:
     detect: Callable[[str, str], Optional[str]]
 
 
+# Rules whose evidence can contain the secret itself. Their evidence is redacted
+# before it ever reaches a Violation, a report, a log or a commit message. A
+# scanner that prints the password it just found has turned one exposure into two.
+SECRET_BEARING = frozenset({"H-08", "H-09", "H-10"})
+REDACTED = "[REDACTED]"
+
+
+def redact_evidence(rid: str, evidence: str) -> str:
+    """Keep the location, drop the value.
+
+    The useful part of a secret finding is WHERE it is, not WHAT it is. The line
+    number and the field name stay; anything that looks like the secret value is
+    replaced.
+    """
+    if rid not in SECRET_BEARING:
+        return evidence
+    import re as _re
+    line = ""
+    if evidence.startswith("line "):
+        try:
+            line, rest = evidence.split(":", 1)
+            evidence = rest.strip()
+        except ValueError:
+            line = ""
+    # drop anything after a quote/colon that looks like a value of 8+ secret chars
+    scrubbed = _re.sub(r"([:\'\"]\s*)[^\s,}\]]{8,}", r"\1" + REDACTED, evidence)
+    if scrubbed == evidence:
+        scrubbed = REDACTED
+    return (line + ": " if line else "") + scrubbed.strip()
+
+
 @dataclass(frozen=True)
 class Violation:
     rid: str
@@ -297,8 +328,9 @@ def scan_file(path: str, content: str, waivers: Sequence[Waiver] = (),
             except (IndexError, ValueError):
                 line = None
         out.append(Violation(rid=rule.rid, severity=rule.severity, action=rule.action,
-                             path=path, line=line, evidence=ev, title=rule.title,
-                             fix=rule.fix))
+                             path=path, line=line,
+                             evidence=redact_evidence(rule.rid, ev),
+                             title=rule.title, fix=rule.fix))
     return out
 
 

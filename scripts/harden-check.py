@@ -1,5 +1,5 @@
-hardening:allow-file ALL reason=this gate documents the patterns it detects in its own help text
 #!/usr/bin/env python3
+# hardening:allow-file ALL reason=this gate documents the patterns it detects in its own help text
 """Hardening gate - run this before every commit and every push.
 
     python scripts/harden-check.py <path> [--waivers waivers.json] [--json]

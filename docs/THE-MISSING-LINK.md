@@ -1,5 +1,7 @@
 # The Missing Link - a complete trust kernel that never reaches a public chain
 
+<!-- hardening:allow-file ALL reason=findings report quoting scan output and protocol payloads -->
+
 Method: read all 114 files of `roshpina/kernel/` (838,280 characters) directly
 from GitHub, plus the repo trees of `Saosmartwallet` and the rest of the estate.
 Read-only. Nothing signed, nothing broadcast, no repository outside

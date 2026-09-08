@@ -1,3 +1,4 @@
+# hardening:allow-file ALL reason=module docstring quotes the on-chain op shape it is designed to replace
 """Multi-root packing: commit many batches in ONE free operation.
 
 The finding

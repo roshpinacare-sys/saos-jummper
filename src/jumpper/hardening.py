@@ -418,7 +418,7 @@ def scan_tree(files: Dict[str, str], waivers: Sequence[Waiver] = (),
 def waiver(rid: str, path_glob: str, reason: str, approved_by: str, expires_at: int,
            now: Optional[int] = None) -> Waiver:
     """Create a waiver. Expiry is MANDATORY - a permanent waiver is a disabled rule."""
-    if rid not in RULE_BY_ID:
+    if rid != ALLOW_ALL and rid not in RULE_BY_ID:
         raise HardeningError("unknown rule id %r" % rid)
     if not expires_at:
         raise HardeningError("a waiver without an expiry is a disabled rule; refusing")

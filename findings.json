@@ -1,0 +1,227 @@
+{
+ "_about": "Machine-readable findings for any agent reading this repository. Produced by independent read-only audit of the roshpinacare-sys estate plus live mainnet queries. Each finding carries exact file evidence, a severity, and a concrete fix. Nothing here is speculation: evidence is quoted from the code or measured from a chain.",
+ "_generated": "2026-09-08",
+ "_method": "GitHub API read-only + live RPC queries to HIVE/ETHEREUM/TRON mainnet. No keys read, no transactions signed, nothing broadcast, no repository outside saos-jummper was modified.",
+ "_evidence_class_legend": {
+  "MEASURED": "read directly from a live chain or from repository file contents",
+  "DERIVED": "exact arithmetic on a MEASURED constant",
+  "UNMEASURED": "cannot be determined from available access; measurement path given"
+ },
+ "findings": [
+  {
+   "id": "F-01",
+   "severity": "critical",
+   "title": "Anchor signer uses ACTIVE authority for pure data attestations",
+   "evidence_class": "MEASURED",
+   "repo": "saos-dex",
+   "file": "src/lib/dex/relay.ts",
+   "symbol": "buildOp",
+   "evidence": "All 21 live HIVE anchors read from mainnet carry required_auths=[headcorner] and required_posting_auths=[]. ACTIVE authority can transfer every asset in the account.",
+   "impact": "An automated broadcaster holds a key that can drain the account, in order to publish bytes.",
+   "fix": "For attestation-class custom_json use required_posting_auths instead of required_auths. Identical resource classes, identical payload size, identical RC cost.",
+   "cost_of_fix": "zero",
+   "effort": "one line in buildOp plus a signing-key change",
+   "implemented_here": "src/jumpper/authority.py + tests (39 assertions in test_throughput.py)"
+  },
+  {
+   "id": "F-02",
+   "severity": "critical",
+   "title": "Solana verifier can never succeed - searchTransactionHistory is false",
+   "evidence_class": "MEASURED",
+   "repo": "saos-dex",
+   "file": "src/lib/dex/relay-sol.ts",
+   "symbol": "verifySolAnchor",
+   "evidence": "getSignatureStatuses is called with {searchTransactionHistory: false}. With that flag the node consults only its ephemeral in-memory recent-status cache and returns null once the signature ages out, producing detail 'not indexed'.",
+   "impact": "verified is structurally pinned at 0 for any anchor older than a few minutes. The ledger shows solana anchored=27 verified=0. That is not 27 failures, it is a verifier that cannot succeed.",
+   "fix": "Pass {searchTransactionHistory: true}, or verify via getTransaction with maxSupportedTransactionVersion 0, both of which search persisted history.",
+   "cost_of_fix": "zero",
+   "effort": "one boolean",
+   "implemented_here": "src/jumpper/netattest.py correct_solana_params() + requires_history_search()"
+  },
+  {
+   "id": "F-03",
+   "severity": "high",
+   "title": "Solana RPC falls back to DEVNET while Ethereum falls back to MAINNET",
+   "evidence_class": "MEASURED",
+   "repo": "saos-dex",
+   "file": "src/lib/dex/relay-sol.ts",
+   "symbol": "SOL_RPCS",
+   "evidence": "SOL_RPCS = process.env.SOL_RPC_URL ? [that] : ['https://api.devnet.solana.com']. In relay-eth.ts, ETH_RPCS = process.env.ETH_RPC_URL ? [that] : ['https://ethereum-rpc.publicnode.com','https://eth.llamarpc.com'].",
+   "impact": "If SOL_RPC_URL is absent at runtime, anchors land on a test network with worthless tokens while the ledger records them with exactly the same shape as a mainnet anchor. This is NOT a claim that it happened - it is a claim that the code permits it and nothing downstream would notice.",
+   "fix": "Never default a production relay to a non-production network. Fail closed instead: if the endpoint env var is absent, refuse to broadcast rather than silently choosing devnet.",
+   "cost_of_fix": "zero",
+   "effort": "a few lines",
+   "implemented_here": "src/jumpper/netattest.py classify_host() + KNOWN_NONMAINNET_HOSTS"
+  },
+  {
+   "id": "F-04",
+   "severity": "high",
+   "title": "The anchor ledger cannot attest which network an anchor landed on",
+   "evidence_class": "MEASURED",
+   "repo": "saos-dex",
+   "file": "src/lib/dex/relay.ts",
+   "symbol": "RelayChainState",
+   "evidence": "RelayChainState records enabled, status, lastTxid, lastHeight, lastAt, lastError, lastVerifyError, anchored, verified, mismatches, breaker. It records no network identifier and no endpoint host.",
+   "impact": "'anchored' is a claim about no particular network. An auditor reading the ledger alone cannot distinguish a mainnet anchor from a devnet one, and the difference cannot be recovered after the fact.",
+   "fix": "Every anchor record must carry network, endpointHost (hostname only), networkMatchesExpected, and finality. Introduce a third state 'unproven' distinct from 'failed'.",
+   "cost_of_fix": "zero",
+   "effort": "schema plus writer change",
+   "implemented_here": "src/jumpper/netattest.py AnchorRecord with state in {verified, unproven, verified-wrong-network}"
+  },
+  {
+   "id": "F-05",
+   "severity": "critical",
+   "title": "HIVE was never blocked - the RC gate read a stale snapshot",
+   "evidence_class": "MEASURED",
+   "repo": "saos-dex / saos-sovereign-foundry",
+   "file": "RC gate logic",
+   "symbol": "rcMana / RC_MIN",
+   "evidence": "rc_api.find_rc_accounts returned current_mana 1,392,041 as of last_update_time 1788870714. Wall clock at measurement was 1788871925, i.e. 1,211 s later. max_rc 25,641,553,538 gives regen 59,355 RC/s. Effective mana was therefore 73,271,489 - 52.6x the stored figure. The gate had earlier read 924,265 against a threshold of 1,000,000 and declared HIVE blocked pending power-up or an 8.9 h wait.",
+   "impact": "Real free anchoring on HIVE was halted by a stale-read bug, and the halt was reported as a capital requirement.",
+   "fix": "effective = min(max_rc, current_mana + (max_rc/432000) * (now - last_update_time)). Never gate on the raw snapshot.",
+   "cost_of_fix": "zero",
+   "effort": "one formula",
+   "implemented_here": "src/jumpper/graphene.py RcState.effective_mana + can_afford(); test pins round(effective)==73271489 exactly"
+  },
+  {
+   "id": "F-06",
+   "severity": "high",
+   "title": "custom_json budget is 8192 bytes; live anchors send 250",
+   "evidence_class": "MEASURED",
+   "repo": "protocol constant",
+   "file": "condenser_api.get_config",
+   "symbol": "HIVE_CUSTOM_JSON_DATA_MAX_LENGTH",
+   "evidence": "Live constant is 8192. The 21 real anchors measured 247-250 bytes each, mean 248.8. HIVE_MAX_TRANSACTION_SIZE is 65536.",
+   "impact": "3.1% of the free per-operation budget is used. 154 Merkle roots fit one operation at 52 bytes per entry.",
+   "fix": "Pack multiple roots per operation. The pulse chain seals every 12 blocks = 2,400 seals/day; packed, all of them anchor in 15.6 operations per day instead of 2,400.",
+   "cost_of_fix": "zero",
+   "effort": "batch the queue",
+   "implemented_here": "src/jumpper/packing.py + src/jumpper/protocol.py"
+  },
+  {
+   "id": "F-07",
+   "severity": "medium",
+   "title": "Two on-chain payload fields are not wasteful but wrong",
+   "evidence_class": "MEASURED",
+   "repo": "saos-dex",
+   "file": "src/lib/dex/relay.ts",
+   "symbol": "seal payload",
+   "evidence": "Payload carries digest = sha256 of the payload itself, and at = the broadcaster's own ISO timestamp.",
+   "impact": "digest is recomputable by anyone, so paying RC to store it is pure waste. at is the broadcaster's clock, but the block timestamp is the authoritative time and is the entire point of anchoring - sending our own clock is weaker and costs bytes.",
+   "fix": "Drop both. Move root from 64-char hex to 43-char base64url. 250 bytes becomes 51.",
+   "cost_of_fix": "zero",
+   "effort": "payload builder",
+   "implemented_here": "src/jumpper/graphene.py CompactAnchor.payload_e()"
+  },
+  {
+   "id": "F-08",
+   "severity": "medium",
+   "title": "Solana verifier accepts 'confirmed', which can be rolled back",
+   "evidence_class": "MEASURED",
+   "repo": "saos-dex",
+   "file": "src/lib/dex/relay-sol.ts",
+   "symbol": "verifySolAnchor getTransaction params",
+   "evidence": "getTransaction is called with commitment 'confirmed'. No occurrence of 'finalized' anywhere in the file.",
+   "impact": "A confirmed Solana transaction can still be dropped by a fork. An anchor verified at confirmed is not yet permanent.",
+   "fix": "Require finalized for anything presented as a permanent anchor.",
+   "cost_of_fix": "zero",
+   "effort": "one string",
+   "implemented_here": "src/jumpper/netattest.py FINALITY table"
+  },
+  {
+   "id": "F-09",
+   "severity": "info",
+   "title": "Ethereum path is sound - recorded so it is not needlessly changed",
+   "evidence_class": "MEASURED",
+   "repo": "saos-dex",
+   "file": "src/lib/dex/relay-eth.ts",
+   "symbol": "ETH_RPCS / verifyEthAnchor",
+   "evidence": "Both default endpoints are mainnet. Verification uses eth_getTransactionReceipt and requires status === '0x1'. Receipts are permanent, so there is no history-search problem. Independently confirmed on chain: txid 0x94f4cb4fc0c50d742a583576b2cb1d14fa55dd99437510bf252a6ccba3e37813 at block 25,929,672, status 0x1, from 0x2767e8146c11bad1d9b0784f11325375195c1b0f, gasUsed 30,920.",
+   "impact": "None. This is the reference implementation the other adapters should be compared against.",
+   "fix": "No change needed. Do not refactor it while fixing F-02 and F-03.",
+   "cost_of_fix": "n/a",
+   "effort": "n/a",
+   "implemented_here": "gas model in src/jumpper/anchor.py exact-matches this transaction to the wei"
+  },
+  {
+   "id": "F-10",
+   "severity": "info",
+   "title": "EIP-7623 calldata floor - any gas model ignoring it under-prices by 150%",
+   "evidence_class": "MEASURED",
+   "repo": "protocol",
+   "file": "Ethereum Prague fork",
+   "symbol": "EIP-7623",
+   "evidence": "For the real transaction above: calldata 248 bytes all non-zero. EIP-2028 gives 3,968 gas. EIP-7623 tokens = 4*248 = 992, floor = 9,920. gasUsed = max(21000+3968, 21000+9920) = 30,920, which equals the actual value exactly. A naive EIP-2028-only model predicts 24,968 and is 5,952 gas short.",
+   "impact": "Any pricing built on EIP-2028 alone under-prices Ethereum anchors by 2.5x on the calldata component.",
+   "fix": "Always take the max of the two rules. Effective price for ASCII JSON is 40 gas per byte, not 16.",
+   "cost_of_fix": "zero",
+   "effort": "a few lines",
+   "implemented_here": "src/jumpper/anchor.py, pinned to the real transaction by test"
+  }
+ ],
+ "unresolved": [
+  {
+   "id": "U-01",
+   "question": "Did the 27 Solana anchors land on mainnet or devnet?",
+   "why_unresolved": "Solana RPC egress is blocked from the audit sandbox - api.mainnet-beta.solana.com and api.devnet.solana.com both returned ConnectionError. The ledger does not record the endpoint (F-04), so it cannot be determined from stored data either.",
+   "how_to_resolve": "From any host with Solana egress, run getSignatureStatuses with searchTransactionHistory true for txid iHD5SC5F3Dq6VeJqq1mQs8Bju5RSs9yBGmVCRVnSa21r33MYVNq7evfFzzs4FT7mJ7TKSdnXRd9ocgsb1h5kgGq against BOTH api.mainnet-beta.solana.com and api.devnet.solana.com. Exactly one will have it. That single query settles it.",
+   "note": "The broadcast gate is honest - solSealBroadcast throws when SOL_BROADCAST_ENABLED is not 1 or true, and anchored only increments on status anchored. So the 27 did broadcast somewhere. The question is only where."
+  },
+  {
+   "id": "U-02",
+   "question": "How much RC does one custom_json anchor consume?",
+   "why_unresolved": "The Hive RC price curve was deliberately not reimplemented from memory. A guessed formula producing confident wrong numbers is worse than an admitted gap.",
+   "how_to_resolve": "Sample effective mana (projection-corrected) immediately before and immediately after one real anchor with no other account activity in between. freeops.RcCalibration implements exactly this and refuses to emit a number without bracketing samples.",
+   "bound_without_it": "At a pessimistic 1e6 RC per anchor, 5.128e9 RC/day still supports 5,128 free anchors per day per staked account."
+  },
+  {
+   "id": "U-03",
+   "question": "What is in roshpina/kernel (875 KB, 114 files, single commit) and Saosmartwallet (1,335 files)?",
+   "why_unresolved": "Not yet read in depth. Saosmartwallet contains packages/core/src/vault/vault.ts (41 KB) and vault/keys.ts (10 KB) - a wallet with key management, backup-recovery and signing dialogs.",
+   "how_to_resolve": "Read vault/keys.ts first: the question that matters is whether private keys are ever held client-side or persisted in a database.",
+   "note": "roshpina is described in its single commit as 'Sovereign Trust & Value Platform (Task 115 chosen project)' - a DIFFERENT chosen project from SAOS. Worth establishing which one is canonical before more work is duplicated."
+  }
+ ],
+ "priority_order": [
+  {
+   "rank": 1,
+   "finding": "F-01",
+   "reason": "highest value, zero cost, removes fund-moving capability from an automated broadcaster"
+  },
+  {
+   "rank": 2,
+   "finding": "F-05",
+   "reason": "unblocks HIVE, which was never blocked; zero cost"
+  },
+  {
+   "rank": 3,
+   "finding": "F-02",
+   "reason": "one boolean; without it Solana verification can never succeed"
+  },
+  {
+   "rank": 4,
+   "finding": "F-03",
+   "reason": "fail closed on a missing endpoint instead of defaulting to devnet"
+  },
+  {
+   "rank": 5,
+   "finding": "F-04",
+   "reason": "add network + endpointHost to every anchor record; introduce the 'unproven' state"
+  },
+  {
+   "rank": 6,
+   "finding": "F-06",
+   "reason": "154 roots per free operation; 2,400 ops/day becomes 16"
+  },
+  {
+   "rank": 7,
+   "finding": "F-07",
+   "reason": "4.9x fewer bytes and two fields that were wrong, not just wasteful"
+  },
+  {
+   "rank": 8,
+   "finding": "U-01",
+   "reason": "one query settles whether the Solana ledger is mainnet or devnet"
+  }
+ ]
+}

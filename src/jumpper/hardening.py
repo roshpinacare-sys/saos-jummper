@@ -327,7 +327,8 @@ def scan_tree(files: Dict[str, str], waivers: Sequence[Waiver] = (),
             "waiversWithoutExpiry": [w.rid for w in waivers if not w.expires_at]}
 
 
-def waiver(rid: str, path_glob: str, reason: str, approved_by: str, expires_at: int) -> Waiver:
+def waiver(rid: str, path_glob: str, reason: str, approved_by: str, expires_at: int,
+           now: Optional[int] = None) -> Waiver:
     """Create a waiver. Expiry is MANDATORY - a permanent waiver is a disabled rule."""
     if rid not in RULE_BY_ID:
         raise HardeningError("unknown rule id %r" % rid)
@@ -337,7 +338,9 @@ def waiver(rid: str, path_glob: str, reason: str, approved_by: str, expires_at: 
         raise HardeningError("a global waiver disables the rule everywhere; scope it to a path")
     w = Waiver(rid=rid, path_glob=path_glob, reason=reason, approved_by=approved_by,
                expires_at=int(expires_at))
-    ok, why = w.is_valid()
+    # `now` is injectable so expiry can be tested deterministically. In production
+    # it is None and the real clock is used - the check is never skipped.
+    ok, why = w.is_valid(now)
     if not ok:
         raise HardeningError(why)
     return w

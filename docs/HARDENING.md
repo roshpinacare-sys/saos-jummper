@@ -94,10 +94,22 @@ A scanner that echoes the value it just found turns one exposure into two. The
 first version of this engine did exactly that: the H-08 evidence line contained
 the vault password verbatim.
 
-That is now fixed and pinned by six regression tests. For the secret-bearing
+That is now fixed and pinned by six regression tests.
+
+**And then the same mistake was made again, in this document.** The first
+committed version of this runbook illustrated the before/after with the real
+vault password spelled out in full - a document about never printing secrets,
+printing one. The gate caught it: H-08 fired on `docs/HARDENING.md` itself. The
+value has been removed and replaced with a description. The lesson is recorded
+rather than quietly edited away, because a runbook that hides its own incident is
+worth less than one that shows it.
+
+The general rule this produced: **a finding is described by its location and its
+shape, never by its value.** That applies to documentation exactly as much as to
+scanner output. For the secret-bearing
 rules - H-08, H-09, H-10 - evidence is reduced to **location plus field name**:
 
-    before:  line 1: pass": "zrLStQf5RS1GxqpTwZJO6goLKUL8iNuVK1UYtuVvraY"
+    before:  line 1: pass": "<the vault password, printed in full>"
     after :  line 1: pass":[REDACTED]
 
 The useful part of a secret finding is WHERE it is, not WHAT it is. A test

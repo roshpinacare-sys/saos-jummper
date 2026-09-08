@@ -365,7 +365,7 @@ def scan_file(path: str, content: str, waivers: Sequence[Waiver] = (),
             ev = None
         if not ev:
             continue
-        if any(w.rid == rule.rid and _matches_glob(path, w.path_glob)
+        if any((w.rid == rule.rid or w.rid == ALLOW_ALL) and _matches_glob(path, w.path_glob)
                and w.is_valid(now)[0] for w in waivers):
             continue
         line: Optional[int] = None

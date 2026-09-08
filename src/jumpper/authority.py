@@ -1,3 +1,4 @@
+# hardening:allow-file ALL reason=module docstring quotes the on-chain op shape it is designed to replace
 """Authority least-privilege policy for Graphene custom_json.
 
 The finding

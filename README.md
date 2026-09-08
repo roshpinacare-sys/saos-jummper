@@ -90,6 +90,54 @@ check: that predicts 32.5 ops/day capacity against 31.6 ops/day observed -
 **within 3%**. The account is RC-saturated, which is why recovering the loops
 matters more than any optimisation.
 
+## The missing link (the biggest finding so far)
+
+`roshpina` holds the most sophisticated code in the entire estate and nobody had
+read it: **114 kernel files, 838,280 characters, one commit, no README.**
+
+It contains a genuine RFC 6962 / Sigstore Rekor style transparency log -
+inclusion proofs, **consistency proofs** against split-view attacks, witnesses
+with liveness and gossip, cross-log consistency, and **federation anchors** that
+let a third party verify two logs agreed at a point in time without seeing either
+log's leaves. Plus ML-DSA (FIPS-204) post-quantum hybrid signing, a strict-state-
+machine escrow economy with a fee engine and dispute handling, RBAC, agent
+identity with delegation, single-use capability tokens that replace a documented
+authorisation flaw, a tamper-evident audit hash chain, and selective-disclosure
+track-record proofs.
+
+It also contains this, in `kernel/track-record/predicate-proof.ts`:
+
+> HONESTY NOTE - this is NOT zero-knowledge cryptography... it would be dishonest
+> to imply otherwise.
+
+**And every one of the 114 files was scanned: zero references to custom_json,
+dhive, hive, steem, ethers, solana or web3.** The kernel's own docstring says its
+log "publishes the root" - to memory. Its consistency defence is stated as
+working *"if every monitor checks"*, which is exactly the assumption a split-view
+attack breaks.
+
+`src/jumpper/sth.py` closes that gap: signed tree heads packed **148 to 177 per
+zero-fee custom_json**, POSTING authority, anchored to HIVE mainnet. Global
+visibility is what turns "detectable if monitors gossip" into "detectable by
+anyone, always" - and it costs nothing.
+
+### A correction this round produced
+
+An earlier claim that the two Merkle conventions matched was read off a
+docstring and was **wrong**. Measured: they agree only for n = 1, 2 and powers of
+two, and differ otherwise (verified n = 1..199, pinned by tests). `jumpper`
+carries an odd node up unchanged; the kernel hashes it with itself. Every signed
+tree head therefore carries its convention explicitly, an unknown convention is
+refused rather than guessed, and a mixed batch is rejected.
+
+A capacity estimate of 181 heads per operation was also optimistic - it probed
+with a one-digit tree_size. 181 real heads encode to 8,889 bytes and cannot be
+broadcast at all. The estimate now measures a representative head, and
+`encode_heads` fails closed on the 8192-byte budget so an over-estimate can never
+reach the chain.
+
+See `docs/THE-MISSING-LINK.md`.
+
 ## Why this project
 
 An audit of 8 repositories and 3 parallel development tracks found one pattern:
@@ -117,7 +165,7 @@ anchor - turned out to be real (block 25,929,672, status 0x1).
 | standalone verifier CLI | implemented, zero-network tier-1 |
 | golden vectors for cross-language ports | generated |
 | economics | measured, see `docs/ECONOMICS.md` |
-| test suite | **137/137 green from a fresh clone** |
+| test suite | **166/166 green from a fresh clone** |
 | end-to-end demo | **PIPELINE GREEN** |
 | HTTP API surface | Phase 3, not started |
 | persistence layer | Phase 3, not started |
@@ -180,6 +228,7 @@ presented as final.
     src/jumpper/authority.py     least privilege: posting for attestations, not active
     src/jumpper/throughput.py    the multiplier stack, every stage evidence-tagged
     src/jumpper/liveops.py       forensics over real chain history: loops, authority, duplicates
+    src/jumpper/sth.py           signed-tree-head anchoring - the bridge to roshpina's CT log
     src/jumpper/freeops.py       capability matrix: 12 free vs 5 never-free, honest limits
     src/jumpper/anchor.py        ETH calldata + EIP-2028/EIP-7623 gas model (settlement tier)
     src/jumpper/witness.py       5-chain keyless read-only probes
@@ -188,6 +237,7 @@ presented as final.
     tests/test_graphene.py       34 assertions on live mainnet fixtures
     tests/test_throughput.py     39 assertions: constants, packing, authority, stack
     tests/test_liveops.py        21 assertions pinned to a real mainnet fixture
+    tests/test_sth.py            34 assertions: convention divergence, capacity, fail-closed
     tests/fixtures/              100 real HIVE account-history entries
     tests/golden_vectors.json    cross-language validation vectors
     scripts/demo_end_to_end.py   full pipeline with live witness
@@ -196,6 +246,7 @@ presented as final.
     docs/FREE-OPERATIONS.md      what is free on our network, and what never is
     docs/BREAKTHROUGHS.md        the seven findings, measured vs derived vs unmeasured
     docs/LIVE-FINDINGS.md        what the chain says is actually running, and what leaks
+    docs/THE-MISSING-LINK.md     roshpina's trust kernel, and the gap it cannot close alone
     docs/TESTING.md              coverage and real transcripts
 
 ## Run it

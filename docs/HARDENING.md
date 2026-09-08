@@ -1,5 +1,7 @@
 # Hardening - how to stay unbreakable without stopping work
 
+<!-- hardening:allow-file ALL reason=runbook quoting rule patterns and before/after evidence -->
+
 The requirement was two things at once: solutions we can still work with, and
 solutions that cannot be broken into. Those pull against each other. A gate
 strict enough to be safe gets disabled; a gate loose enough to be convenient

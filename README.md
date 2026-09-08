@@ -138,6 +138,48 @@ reach the chain.
 
 See `docs/THE-MISSING-LINK.md`.
 
+## Hardening: safe AND usable, not one or the other
+
+`docs/HARDENING.md` + `src/jumpper/hardening.py` + `scripts/harden-check.py`.
+
+The requirement was two things at once: solutions we can still work with, and
+solutions that cannot be broken into. The resolution is not a compromise:
+
+> **Fail closed by default, with a scoped, expiring, committed, audited waiver.**
+
+Every blocking rule can be passed - but only by an act that is named, reasoned,
+attributed to a human, time-limited, stored in the repository, and printed in
+every subsequent gate run. A rule people disable is not a control. A waiver
+people can see is.
+
+**17 rules, every one derived from a real defect read out of this estate.** None
+is speculative; each carries the finding it came from.
+
+    python scripts/harden-check.py .        # exit 1 if anything blocks
+
+Verified against a tree built from the actual defective files: **10 blocking + 4
+reporting across 9 files, verdict BLOCKED, exit 1**. Against a clean tree:
+**PASS, exit 0**. A clean file inside the defective tree was correctly reported
+clean.
+
+The gate **never prints a secret value**. Its first version did - the H-08
+evidence line contained the vault password verbatim. That is fixed and pinned by
+six regression tests: for H-08, H-09 and H-10 the evidence is reduced to location
+plus field name, and a test serialises the whole verdict and asserts the secret
+appears nowhere in it.
+
+Three of the eleven blocking rules are single-token fixes:
+
+| rule | fix | cost |
+|---|---|---|
+| H-11 | `required_auths` -> `required_posting_auths` | two fields, **zero RC** |
+| H-13 | `searchTransactionHistory: false` -> `true` | **one boolean** |
+| H-05 | `Math.random()` -> a CSPRNG, fatal if absent | one call |
+
+H-11 alone removes fund-moving capability from every automated broadcaster in the
+estate, because posting and active authority consume the same resource classes
+for the same payload.
+
 ## Why this project
 
 An audit of 8 repositories and 3 parallel development tracks found one pattern:
@@ -165,7 +207,7 @@ anchor - turned out to be real (block 25,929,672, status 0x1).
 | standalone verifier CLI | implemented, zero-network tier-1 |
 | golden vectors for cross-language ports | generated |
 | economics | measured, see `docs/ECONOMICS.md` |
-| test suite | **166/166 green from a fresh clone** |
+| test suite | **214/214 green from a fresh clone** |
 | end-to-end demo | **PIPELINE GREEN** |
 | HTTP API surface | Phase 3, not started |
 | persistence layer | Phase 3, not started |
@@ -229,6 +271,7 @@ presented as final.
     src/jumpper/throughput.py    the multiplier stack, every stage evidence-tagged
     src/jumpper/liveops.py       forensics over real chain history: loops, authority, duplicates
     src/jumpper/sth.py           signed-tree-head anchoring - the bridge to roshpina's CT log
+    src/jumpper/hardening.py     17-rule policy engine, every rule from a real defect
     src/jumpper/freeops.py       capability matrix: 12 free vs 5 never-free, honest limits
     src/jumpper/anchor.py        ETH calldata + EIP-2028/EIP-7623 gas model (settlement tier)
     src/jumpper/witness.py       5-chain keyless read-only probes
@@ -238,15 +281,19 @@ presented as final.
     tests/test_throughput.py     39 assertions: constants, packing, authority, stack
     tests/test_liveops.py        21 assertions pinned to a real mainnet fixture
     tests/test_sth.py            34 assertions: convention divergence, capacity, fail-closed
+    tests/test_hardening.py      27 assertions: every rule pinned to its real defect
     tests/fixtures/              100 real HIVE account-history entries
     tests/golden_vectors.json    cross-language validation vectors
     scripts/demo_end_to_end.py   full pipeline with live witness
+    scripts/harden-check.py      the gate - run before every commit and push
     docs/ARCHITECTURE.md         design
     docs/ECONOMICS.md            measured cost model
     docs/FREE-OPERATIONS.md      what is free on our network, and what never is
     docs/BREAKTHROUGHS.md        the seven findings, measured vs derived vs unmeasured
     docs/LIVE-FINDINGS.md        what the chain says is actually running, and what leaks
     docs/THE-MISSING-LINK.md     roshpina's trust kernel, and the gap it cannot close alone
+    docs/WALLET-AUDIT.md         the wallet vault: plaintext fallback, stub crypto, lost merge
+    docs/HARDENING.md            the gate, the rules, and how to get a waiver
     docs/TESTING.md              coverage and real transcripts
 
 ## Run it

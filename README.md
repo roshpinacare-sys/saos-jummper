@@ -50,6 +50,24 @@ expensive than free for work our network already does at zero fee.
 
 Full analysis: `docs/FREE-OPERATIONS.md`.
 
+## The four free wins (all measured, none cost anything)
+
+| # | finding | status | gain |
+|---|---|---|---|
+| 1 | **21/21 live anchors sign with the ACTIVE key** for a pure data attestation. POSTING suffices at identical RC | MEASURED | removes fund-moving capability from an automated broadcaster |
+| 2 | **The HIVE blocker was a stale-read bug.** `rc_api` returns a snapshot as of `last_update_time`; projecting it forward gives 73,271,489 RC, not 924,265 | MEASURED | HIVE was never blocked; 52.6x more RC visible |
+| 3 | **`custom_json` may carry 8,192 bytes; we send 250.** One free operation fits **154 Merkle roots** | DERIVED from a live constant | 2,400 seals/day anchored in **15.6 operations** |
+| 4 | **Two on-chain fields are wrong, not just wasteful:** `digest` is recomputable, and `at` is our clock when the block time is the authority | MEASURED | 250 B -> 51 B payload |
+
+Combined: **351 bytes per anchored batch today -> 53.6 bytes. 6.55x, 84.7% fewer.**
+
+Full analysis with the measured / derived / unmeasured ledger: `docs/BREAKTHROUGHS.md`.
+
+The one missing number is RC consumed per anchor. It is deliberately not guessed -
+a formula reconstructed from memory that produces confident wrong numbers is worse
+than an admitted gap. `RcCalibration` measures it from one bracketed sample pair.
+Until then the floor stands: **5,128 free anchors per day** per staked account.
+
 ## Why this project
 
 An audit of 8 repositories and 3 parallel development tracks found one pattern:
@@ -77,7 +95,7 @@ anchor - turned out to be real (block 25,929,672, status 0x1).
 | standalone verifier CLI | implemented, zero-network tier-1 |
 | golden vectors for cross-language ports | generated |
 | economics | measured, see `docs/ECONOMICS.md` |
-| test suite | **77/77 green from a fresh clone** |
+| test suite | **116/116 green from a fresh clone** |
 | end-to-end demo | **PIPELINE GREEN** |
 | HTTP API surface | Phase 3, not started |
 | persistence layer | Phase 3, not started |
@@ -135,17 +153,23 @@ presented as final.
     src/jumpper/claim.py         domain-separated leaf hashing
     src/jumpper/batch.py         accumulation, sealing, invariants
     src/jumpper/graphene.py      FREE anchor layer: custom_json, RC projection, compaction
+    src/jumpper/protocol.py      live HIVE protocol constants (8192B custom_json, 3s blocks)
+    src/jumpper/packing.py       154 Merkle roots per free operation
+    src/jumpper/authority.py     least privilege: posting for attestations, not active
+    src/jumpper/throughput.py    the multiplier stack, every stage evidence-tagged
     src/jumpper/freeops.py       capability matrix: 12 free vs 5 never-free, honest limits
     src/jumpper/anchor.py        ETH calldata + EIP-2028/EIP-7623 gas model (settlement tier)
     src/jumpper/witness.py       5-chain keyless read-only probes
     src/jumpper/verify.py        standalone verifier CLI
     tests/test_jumpper.py        43 assertions
     tests/test_graphene.py       34 assertions on live mainnet fixtures
+    tests/test_throughput.py     39 assertions: constants, packing, authority, stack
     tests/golden_vectors.json    cross-language validation vectors
     scripts/demo_end_to_end.py   full pipeline with live witness
     docs/ARCHITECTURE.md         design
     docs/ECONOMICS.md            measured cost model
     docs/FREE-OPERATIONS.md      what is free on our network, and what never is
+    docs/BREAKTHROUGHS.md        the seven findings, measured vs derived vs unmeasured
     docs/TESTING.md              coverage and real transcripts
 
 ## Run it

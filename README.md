@@ -14,6 +14,42 @@ chain cannot lie.
 
 ---
 
+## The free path (this is the primary one)
+
+Our own network already anchors for **$0.00**. Verified live on HIVE mainnet,
+read-only:
+
+    operation      custom_json, id "saos-dex.anchor.v1"
+    authority      required_auths = [headcorner]   (ACTIVE key)
+    fee field      ABSENT - zero fee
+    real anchors   21 in the last 100 history entries, over ~22 hours
+    blocks         109708562 to 109734678
+    max_rc         25,641,553,538
+    regen          59,355 RC/sec = 5,128,310,708 RC/day
+    effective mana 73,271,489
+
+**Pessimistic floor: 5,128 free anchors per day.** Real figure is higher and is
+one measurement away.
+
+Two findings that came out of reading the live chain:
+
+1. **The RC "blocker" was a stale-read bug.** `rc_api` returns `current_mana` as
+   of `last_update_time` - a snapshot, not a balance. A gate comparing it to a
+   constant reported BLOCKED at 924,265 RC while the account actually held
+   **73,271,489 RC** (52.6x more). Costs nothing to fix. `graphene.py` fixes it
+   and the test pins the projection to the live measurement exactly.
+
+2. **The payload was 4.9x too big.** 250 bytes on chain today; 51 bytes for the
+   same commitment. Two fields were not just redundant but wrong: `digest`
+   (recomputable by anyone) and `at` (our own clock, when the BLOCK time is the
+   authoritative one). Shrinking it multiplies free throughput.
+
+Ethereum is **demoted** to an optional low-frequency settlement tier for third
+parties who refuse Graphene finality. At $0.081 per anchor it is infinitely more
+expensive than free for work our network already does at zero fee.
+
+Full analysis: `docs/FREE-OPERATIONS.md`.
+
 ## Why this project
 
 An audit of 8 repositories and 3 parallel development tracks found one pattern:
@@ -41,7 +77,7 @@ anchor - turned out to be real (block 25,929,672, status 0x1).
 | standalone verifier CLI | implemented, zero-network tier-1 |
 | golden vectors for cross-language ports | generated |
 | economics | measured, see `docs/ECONOMICS.md` |
-| test suite | **43/43 green** |
+| test suite | **77/77 green from a fresh clone** |
 | end-to-end demo | **PIPELINE GREEN** |
 | HTTP API surface | Phase 3, not started |
 | persistence layer | Phase 3, not started |
@@ -98,14 +134,18 @@ presented as final.
     src/jumpper/merkle.py        tree, proofs, standalone verify
     src/jumpper/claim.py         domain-separated leaf hashing
     src/jumpper/batch.py         accumulation, sealing, invariants
-    src/jumpper/anchor.py        calldata + EIP-2028/EIP-7623 gas model
+    src/jumpper/graphene.py      FREE anchor layer: custom_json, RC projection, compaction
+    src/jumpper/freeops.py       capability matrix: 12 free vs 5 never-free, honest limits
+    src/jumpper/anchor.py        ETH calldata + EIP-2028/EIP-7623 gas model (settlement tier)
     src/jumpper/witness.py       5-chain keyless read-only probes
     src/jumpper/verify.py        standalone verifier CLI
     tests/test_jumpper.py        43 assertions
+    tests/test_graphene.py       34 assertions on live mainnet fixtures
     tests/golden_vectors.json    cross-language validation vectors
     scripts/demo_end_to_end.py   full pipeline with live witness
     docs/ARCHITECTURE.md         design
     docs/ECONOMICS.md            measured cost model
+    docs/FREE-OPERATIONS.md      what is free on our network, and what never is
     docs/TESTING.md              coverage and real transcripts
 
 ## Run it

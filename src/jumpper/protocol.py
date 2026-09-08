@@ -51,14 +51,18 @@ class ProtocolError(ValueError):
     pass
 
 
-def roots_per_operation(entry_bytes: int) -> int:
+def roots_per_operation(entry_bytes_including_separator: int) -> int:
     """How many Merkle-root entries fit in ONE free custom_json.
 
-    entry_bytes is the on-chain cost of one entry including its separator.
+    entry_bytes_including_separator must include the separator, because K entries
+    carry K-1 separators and the budget is consumed by both. For tier E that is
+    51 bytes of entry plus 1 byte of separator = 52, giving 8192 // 53 = 154
+    when the trailing separator is accounted for exactly as packing.max_entries
+    does. Callers should prefer packing.max_entries(), which is the authority.
     """
-    if entry_bytes < 1:
+    if entry_bytes_including_separator < 1:
         raise ProtocolError("entry_bytes must be >= 1")
-    return HIVE_CUSTOM_JSON_DATA_MAX_LENGTH // entry_bytes
+    return HIVE_CUSTOM_JSON_DATA_MAX_LENGTH // entry_bytes_including_separator
 
 
 def operations_per_transaction(operation_bytes: int) -> int:

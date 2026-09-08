@@ -5,26 +5,26 @@
   {
    "rid": "ALL",
    "pathGlob": "findings.json",
-   "reason": "machine-readable finding register contributed by another agent; it quotes the defective patterns and on-chain payloads it documents. JSON cannot carry a comment, so the allowance lives here instead.",
+   "reason": "machine-readable finding register contributed by another agent; it quotes the defective patterns and on-chain payloads it documents. JSON cannot carry a comment, so the allowance lives here.",
    "approvedBy": "owner",
-   "expiresAt": 1796684909,
-   "createdAt": 1788908909
+   "expiresAt": 1796684943,
+   "createdAt": 1788908943
   },
   {
    "rid": "ALL",
    "pathGlob": "tests/fixtures/*.json",
-   "reason": "captured live mainnet account history used as a test fixture; it contains real on-chain custom_json payloads including required_auths. Fixtures must stay faithful to the chain.",
+   "reason": "captured live mainnet account history used as a test fixture; it contains real on-chain custom_json payloads. Fixtures must stay faithful to the chain.",
    "approvedBy": "owner",
-   "expiresAt": 1796684909,
-   "createdAt": 1788908909
+   "expiresAt": 1796684943,
+   "createdAt": 1788908943
   },
   {
    "rid": "ALL",
    "pathGlob": "tests/golden_vectors.json",
    "reason": "cross-language validation vectors; they quote real mainnet calldata by design.",
    "approvedBy": "owner",
-   "expiresAt": 1796684909,
-   "createdAt": 1788908909
+   "expiresAt": 1796684943,
+   "createdAt": 1788908943
   }
  ]
 }

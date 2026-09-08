@@ -68,6 +68,28 @@ a formula reconstructed from memory that produces confident wrong numbers is wor
 than an admitted gap. `RcCalibration` measures it from one bracketed sample pair.
 Until then the floor stands: **5,128 free anchors per day** per staked account.
 
+## What the chain says is actually running (read live, not reported)
+
+`docs/LIVE-FINDINGS.md`. Six protocols are live on HIVE mainnet under account
+`headcorner`, three of which appeared in no report: `saos.attest.v1` anchors git
+commits, `saos.id.v1` binds the account to an EVM address with an EIP-191
+signature, and `saos.weave.v1` already has a batching schema.
+
+Four findings, all measured against real on-chain data committed as a test fixture:
+
+| # | finding | cost |
+|---|---|---|
+| 1 | **A live RC leak.** `hive.convert 9.632` attempted 11 times; balance unchanged at 9.682 HIVE. Hive-Engine unwraps SWAP.HIVE, which the account no longer holds. Still running. | ~1.73e9 RC, about 34% of a day's budget |
+| 2 | **57 of 62 attestation ops (91.9%) sign with ACTIVE** when POSTING suffices. The `saos` value_lock ops already use POSTING correctly, so the pattern is proven in the same account. | critical key exposure, zero RC to fix |
+| 3 | **One weave seal broadcast 10 times** (same net, seq and root). No idempotency guard on the on-chain protocol. | 9 redundant permanent records |
+| 4 | **97% of the free payload budget is unused.** 248.9 of 8,192 bytes. `saos.weave.v1` has count/from/to and every seal carries count = 1 - detector verdict: "batching schema present but unused". | 32.9x to 37.6x headroom |
+
+RC per operation is now **MEASURED**, not guessed: two manabar snapshots 6.08 h
+apart bracketing 4 known operations give 157,713,792 RC per op. Independent
+check: that predicts 32.5 ops/day capacity against 31.6 ops/day observed -
+**within 3%**. The account is RC-saturated, which is why recovering the loops
+matters more than any optimisation.
+
 ## Why this project
 
 An audit of 8 repositories and 3 parallel development tracks found one pattern:
@@ -95,7 +117,7 @@ anchor - turned out to be real (block 25,929,672, status 0x1).
 | standalone verifier CLI | implemented, zero-network tier-1 |
 | golden vectors for cross-language ports | generated |
 | economics | measured, see `docs/ECONOMICS.md` |
-| test suite | **116/116 green from a fresh clone** |
+| test suite | **137/137 green from a fresh clone** |
 | end-to-end demo | **PIPELINE GREEN** |
 | HTTP API surface | Phase 3, not started |
 | persistence layer | Phase 3, not started |
@@ -157,6 +179,7 @@ presented as final.
     src/jumpper/packing.py       154 Merkle roots per free operation
     src/jumpper/authority.py     least privilege: posting for attestations, not active
     src/jumpper/throughput.py    the multiplier stack, every stage evidence-tagged
+    src/jumpper/liveops.py       forensics over real chain history: loops, authority, duplicates
     src/jumpper/freeops.py       capability matrix: 12 free vs 5 never-free, honest limits
     src/jumpper/anchor.py        ETH calldata + EIP-2028/EIP-7623 gas model (settlement tier)
     src/jumpper/witness.py       5-chain keyless read-only probes
@@ -164,12 +187,15 @@ presented as final.
     tests/test_jumpper.py        43 assertions
     tests/test_graphene.py       34 assertions on live mainnet fixtures
     tests/test_throughput.py     39 assertions: constants, packing, authority, stack
+    tests/test_liveops.py        21 assertions pinned to a real mainnet fixture
+    tests/fixtures/              100 real HIVE account-history entries
     tests/golden_vectors.json    cross-language validation vectors
     scripts/demo_end_to_end.py   full pipeline with live witness
     docs/ARCHITECTURE.md         design
     docs/ECONOMICS.md            measured cost model
     docs/FREE-OPERATIONS.md      what is free on our network, and what never is
     docs/BREAKTHROUGHS.md        the seven findings, measured vs derived vs unmeasured
+    docs/LIVE-FINDINGS.md        what the chain says is actually running, and what leaks
     docs/TESTING.md              coverage and real transcripts
 
 ## Run it

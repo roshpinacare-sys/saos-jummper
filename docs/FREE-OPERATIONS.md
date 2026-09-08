@@ -115,3 +115,72 @@ Each is specified in `src/jumpper/freeops.py` with its honest limit inline.
 | 10 | Cross-chain relay between endpoints YOU control | LayerZero, Wormhole, Axelar | trust is your watcher, not a decentralized validator set |
 | 11 | Software licence key registry | licence contracts, SaaS licence servers | the binary must still check and decide |
 | 12 | Public data availability for small payloads | Arweave, IPFS pinning | RC scales with bytes; tier E gives ~51 B. Not a file store |
+
+## What is NOT free - stated plainly so nobody over-claims
+
+| capability | why |
+|---|---|
+| Escrow / atomic swap / guaranteed settlement | needs capital at risk. custom_json can PROPOSE and RECORD, never BIND. An escrow without collateral is a promise, and promises are free because they are worthless |
+| Token transfer / mint / burn | you cannot conjure value. Moving a token requires holding it |
+| Decentralized oracle with economic security | publishing a price is free; making it trustworthy needs staked, slashable reporters. Free submission is not a free oracle |
+| Account creation | resource_new_accounts pool observed at fill_level 1073 of 10000 - heavily depleted. Assume expensive until measured |
+| Privacy / confidential state | everything written is public forever. Commit to a hash to hide content; the commitment itself is permanent and attributable |
+
+A test enforces this: no capability tagged `enforcement` may have
+`free_on_ours == True`. Mark escrow as free and the suite fails.
+
+## Throughput - what is bounded and what is not
+
+Sustained RC budget: **5.13e9 RC per day**.
+
+Per-anchor RC cost is **UNMEASURED**. The Hive price curve is deliberately not
+reimplemented from memory, because a guessed formula producing confident wrong
+numbers is worse than an admitted gap.
+
+`RcCalibration` measures it instead: sample effective mana immediately before
+and immediately after one real anchor with no other account activity in between.
+It refuses to emit a number without bracketing samples, and rejects gaps that
+are too small or spends that come out non-positive.
+
+What is bounded WITHOUT knowing the cost:
+
+- **Observed**: 21 anchors in about 22 hours with mana positive and rising.
+  Whatever the per-anchor cost is, that cadence is free and sustainable today.
+- **Pessimistic floor**: even at 1,000,000 RC per anchor, 5.13e9 RC per day
+  supports **5,128 anchors per day at zero fee**.
+- **With tier-E compaction** (250 B to 51 B, -79.6%), any byte-proportional
+  component falls by roughly the same factor, multiplying that floor.
+
+Honest statement: **thousands to millions of free anchors per day, bounded by
+stake, not by money.** The exact figure is one measurement away.
+
+## Raising the ceiling (capital once, not per operation)
+
+RC capacity is proportional to staked HIVE POWER. `headcorner` currently holds
+17,511.838295 VESTS with max_rc 25.64e9 and a balance of 9.682 HIVE.
+
+Powering up converts a one-time capital position into a permanent free-throughput
+increase. That is the only lever, and it is a ONE-TIME cost, not a per-anchor
+cost - which is exactly the difference between our network and every metered
+alternative.
+
+## Test coverage for all of the above
+
+34 assertions in `tests/test_graphene.py`, pinned to live mainnet fixtures:
+
+- RC projection matches the independent measurement exactly (73,271,489)
+- the stale-read bug is reproduced and the corrected gate passes
+- regen rate derives from max_rc over 5 days
+- legacy payload size matches the observed on-chain 250 bytes
+- tier-E compaction is at most 52 bytes and more than 79% smaller, exact round-trip
+- the op shape matches the verified mainnet form and carries no fee field
+- the tx skeleton contains no key material
+- no enforcement capability claims to be free
+- every capability states an honest limit
+- calibration refuses to invent a cost
+
+Full suite: **77 tests, green from a fresh clone.**
+
+---
+
+*Read-only throughout. No keys read, no transactions signed, nothing broadcast.*

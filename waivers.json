@@ -1,0 +1,30 @@
+{
+ "_about": "Waivers cover files that CANNOT carry an inline allowance - JSON, binaries, generated artifacts. Committed on purpose: a hidden waiver is a disabled rule.",
+ "_how_to_create": "python scripts/harden-check.py --waive H-11 --glob 'findings.json' --reason 'ticket SAOS-99' --by owner --days 30",
+ "waivers": [
+  {
+   "rid": "ALL",
+   "pathGlob": "findings.json",
+   "reason": "machine-readable finding register contributed by another agent; it quotes the defective patterns and on-chain payloads it documents. JSON cannot carry a comment, so the allowance lives here instead.",
+   "approvedBy": "owner",
+   "expiresAt": 1796684909,
+   "createdAt": 1788908909
+  },
+  {
+   "rid": "ALL",
+   "pathGlob": "tests/fixtures/*.json",
+   "reason": "captured live mainnet account history used as a test fixture; it contains real on-chain custom_json payloads including required_auths. Fixtures must stay faithful to the chain.",
+   "approvedBy": "owner",
+   "expiresAt": 1796684909,
+   "createdAt": 1788908909
+  },
+  {
+   "rid": "ALL",
+   "pathGlob": "tests/golden_vectors.json",
+   "reason": "cross-language validation vectors; they quote real mainnet calldata by design.",
+   "approvedBy": "owner",
+   "expiresAt": 1796684909,
+   "createdAt": 1788908909
+  }
+ ]
+}

@@ -101,8 +101,7 @@ def report(res, as_json=False):
                   % (w["rid"], w["pathGlob"], w["approvedBy"], w["expiresAt"],
                      w["valid"], w["reason"][:60]))
     if res["violations"]:
-        print("
-%-6s %-9s %-7s %s" % ("RULE", "SEVERITY", "ACTION", "WHERE / EVIDENCE"))
+        print("\n%-6s %-9s %-7s %s" % ("RULE", "SEVERITY", "ACTION", "WHERE / EVIDENCE"))
         print("-" * 74)
         for v in res["violations"]:
             where = v["path"] + ((":%d" % v["line"]) if v.get("line") else "")
@@ -111,10 +110,8 @@ def report(res, as_json=False):
             print("       evidence: %s" % v["evidence"][:150])
             print("       fix     : %s" % v["fix"][:150])
     else:
-        print("
-no violations")
-    print("
-" + ("GATE PASSED" if res["pass"] else "GATE BLOCKED - do not push"))
+        print("\nno violations")
+    print("\n" + ("GATE PASSED" if res["pass"] else "GATE BLOCKED - do not push"))
 
 
 def do_waive(a):
@@ -151,8 +148,7 @@ def do_waive(a):
     print("  expires   : %d (%d days)" % (w.expires_at, days))
     print("  approvedBy: %s" % w.approved_by)
     print("  reason    : %s" % w.reason)
-    print("
-This file is committed on purpose. A hidden waiver is a disabled rule.")
+    print("\nThis file is committed on purpose. A hidden waiver is a disabled rule.")
     return 0
 
 

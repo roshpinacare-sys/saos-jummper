@@ -1,5 +1,7 @@
 # Live Findings - what the chain says the network is actually doing
 
+<!-- hardening:allow-file ALL reason=findings report quoting on-chain payloads including required_auths -->
+
 Read directly from HIVE mainnet on 2026-09-08, read-only, account headcorner.
 Sources: condenser_api.get_account_history (100 entries), rc_api.find_rc_accounts,
 condenser_api.get_accounts, condenser_api.get_config. Nodes: api.openhive.network

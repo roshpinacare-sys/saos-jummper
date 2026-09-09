@@ -1,4 +1,32 @@
-<!-- hardening:allow-file ALL reason=audit report quoting the defects it found, including conflict markers and a storage fallback -->
+<!-- hardening:allow-file ALL reason=superseded audit kept as a record, quoting the defects it found -->
+
+> # ⚠️ SUPERSEDED - READ `docs/WALLET-AUDIT-CORRECTION.md` FIRST
+>
+> **This audit is no longer a current assessment of `Saosmartwallet`.**
+>
+> The files it quotes - `secure-storage.ts`, `key-derivation.ts`,
+> `key-encryption.ts`, `vault.ts.orig` - now return **404**. The repository has
+> been restructured around `packages/core`, which contains real cryptography read
+> and verified in source: **Argon2id** (64 MiB, t=3, constant-time verify),
+> **Shamir Secret Sharing over GF(256)**, **AES-256-GCM plus ChaCha20-Poly1305
+> envelopes** with a pure-TypeScript RFC 8439 fallback, and **Fiat-Shamir Schnorr
+> zero-knowledge proofs of password knowledge** over secp256k1.
+>
+> The headline conclusion below - that the wallet has no real cryptography - is
+> **wrong for the current repository**. Do not act on it.
+>
+> Still open and unaffected by the correction:
+> - `db/custom.db` (290,816 bytes) committed and never inspected
+> - `signing/orchestrator.ts` (41,819 bytes) and `policy/engine.ts` (20,564 bytes)
+>   claimed fail-closed but **never read**
+> - no npm `workspaces` despite a monorepo layout; `packages/core` is imported by
+>   relative path and has no version or dependency edge
+>
+> This document is kept unedited below the banner. Its findings were accurate for
+> the files as they existed when read, and the record of having been wrong is
+> worth more than a clean history.
+
+---
 
 # Wallet Audit - Saosmartwallet/packages/core/src/vault
 

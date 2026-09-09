@@ -182,6 +182,33 @@ H-11 alone removes fund-moving capability from every automated broadcaster in th
 estate, because posting and active authority consume the same resource classes
 for the same payload.
 
+## Cross-chain proof, and the control that stops a runaway loop
+
+**U-01 is resolved.** The Solana anchors are on **mainnet** - slot 445,225,030,
+`err: null`, official SPL Memo program, 5,000 lamports. And the commitment is
+**byte-identical to the Ethereum anchor** at block 25,929,672 across all six
+fields: protocol, action, at, height, stateRoot, digest.
+
+    COMMITMENT IDENTICAL ON 2 INDEPENDENT MAINNETS
+
+That corrects an earlier reading. `solana verified=0` was not 27 failures - it was
+one boolean (`searchTransactionHistory: false`) making the verifier structurally
+unable to see anything older than the node cache. **The system was doing the right
+thing and reporting it badly.**
+
+Measured cost for the identical 248-byte commitment: HIVE custom_json **$0.00**,
+Solana memo **$0.00075**, Ethereum calldata **$0.08123**. Ethereum is 108x more
+expensive than Solana and infinitely more expensive than HIVE.
+
+**`src/jumpper/budget.py`** adds the control the estate was missing. Replaying the
+real 11-call `hive.convert` loop - real payload, real measured RC cost, real
+timestamps - the gate allows 1 and denies 10, recovering **1,577,137,920 RC, 30.8%
+of one day's regeneration budget**. It is fail-closed throughout, with AND
+semantics and a raising guard treated as a deny, copied from
+`roshpina/kernel/orchestrator/guard.ts`.
+
+See `docs/CROSS-CHAIN-PROOF.md` and `docs/BUDGET-GUARD.md`.
+
 ## Why this project
 
 An audit of 8 repositories and 3 parallel development tracks found one pattern:
@@ -209,7 +236,7 @@ anchor - turned out to be real (block 25,929,672, status 0x1).
 | standalone verifier CLI | implemented, zero-network tier-1 |
 | golden vectors for cross-language ports | generated |
 | economics | measured, see `docs/ECONOMICS.md` |
-| test suite | **214/214 green from a fresh clone** |
+| test suite | **green from a fresh clone** |
 | end-to-end demo | **PIPELINE GREEN** |
 | HTTP API surface | Phase 3, not started |
 | persistence layer | Phase 3, not started |
@@ -274,6 +301,9 @@ presented as final.
     src/jumpper/liveops.py       forensics over real chain history: loops, authority, duplicates
     src/jumpper/sth.py           signed-tree-head anchoring - the bridge to roshpina's CT log
     src/jumpper/hardening.py     17-rule policy engine, every rule from a real defect
+    src/jumpper/solana.py        memo anchoring, measured on mainnet (5000 lamports)
+    src/jumpper/crosschain.py    commitment equality across independent mainnets
+    src/jumpper/budget.py        rolling budget + repeat guard, all fail-closed
     src/jumpper/freeops.py       capability matrix: 12 free vs 5 never-free, honest limits
     src/jumpper/anchor.py        ETH calldata + EIP-2028/EIP-7623 gas model (settlement tier)
     src/jumpper/witness.py       5-chain keyless read-only probes
@@ -283,7 +313,9 @@ presented as final.
     tests/test_throughput.py     39 assertions: constants, packing, authority, stack
     tests/test_liveops.py        21 assertions pinned to a real mainnet fixture
     tests/test_sth.py            34 assertions: convention divergence, capacity, fail-closed
-    tests/test_hardening.py      27 assertions: every rule pinned to its real defect
+    tests/test_hardening.py      35 assertions: every rule pinned to its real defect
+    tests/test_crosschain.py     31 assertions on real ETH + SOL mainnet transactions
+    tests/test_budget.py         32 assertions replaying the real convert loop
     tests/fixtures/              100 real HIVE account-history entries
     tests/golden_vectors.json    cross-language validation vectors
     scripts/demo_end_to_end.py   full pipeline with live witness
@@ -296,6 +328,8 @@ presented as final.
     docs/THE-MISSING-LINK.md     roshpina's trust kernel, and the gap it cannot close alone
     docs/WALLET-AUDIT.md         the wallet vault: plaintext fallback, stub crypto, lost merge
     docs/HARDENING.md            the gate, the rules, and how to get a waiver
+    docs/CROSS-CHAIN-PROOF.md    U-01 resolved: same commitment on two mainnets
+    docs/BUDGET-GUARD.md         the control that stops a runaway loop
     docs/TESTING.md              coverage and real transcripts
 
 ## Run it

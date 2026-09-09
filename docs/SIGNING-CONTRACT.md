@@ -61,3 +61,95 @@ Its header also states: *"Denials and step-up demands THROW - nothing is ever
 signed on a maybe."* That is the policy gate behaving correctly.
 
 ---
+
+## A correction to my own earlier finding (H-11)
+
+I reported that 57 of 62 attestation operations on HIVE mainnet were signed with
+the ACTIVE authority, and recommended swapping two fields in `buildOp`.
+
+**That recommendation was wrong.** Reading `saos-dex/src/lib/dex/relay.ts` shows
+the least-privilege logic is already implemented:
+
+    const steemPost = (process.env.STEEM_POSTING_WIF || "").trim();
+    const hivePost  = (process.env.HIVE_POSTING_WIF  || "").trim();
+    const steemRaw  = steemPost || (process.env.STEEM_ACTIVE_WIF || "").trim();
+    const hiveRaw   = hivePost  || (process.env.HIVE_ACTIVE_WIF  || "").trim();
+    ...
+    const steemAuth = steemPost ? "posting" : "active";
+    const hiveAuth  = hivePost  ? "posting" : "active";
+
+It prefers the POSTING key and falls back to ACTIVE only when no posting key is
+configured, deriving the authority from whichever key was found. That is exactly
+the right design.
+
+**So the 57/62 ACTIVE anchors are a CONFIGURATION gap, not a code gap.** The fix
+is to set `STEEM_POSTING_WIF` and `HIVE_POSTING_WIF`. No code change at all, and
+the authority flips to posting on the next run.
+
+The same file is also fail-closed on a bad key, with no retry loop:
+
+    if (!steemWif || !hiveWif) {
+      console.error("[saos-relay][ALERT] wif-invalid: ... relay suspended
+                     fail-closed (not a retry loop)");
+      return null;
+    }
+
+That is good engineering, and it is why `relay.ts` scores 3/6 rather than 1/6.
+What it genuinely lacks is a session gate, a policy gate and an audit trail - the
+three stages that would have caught the convert loop.
+
+---
+
+## Three defects in this module, all found by its own tests
+
+### 1. A splice silently replaced a helper with a lambda - and check() still said 6/6
+
+A revision inserted `console_leaks` after the `STAGES` list by searching for the
+text `def console_leaks(`. That string also appears **inside a stage lambda**, so
+the splice landed in the wrong place. `console_leaks` became a lambda, stage 4
+degraded to "not (audit-pattern-present)", and `check()` returned **6/6 on the real
+orchestrator** - a broken detector that looked green.
+
+Fixed by rebuilding the module with every helper defined above `STAGES`, and pinned
+by a test asserting the helpers are real functions and that `def console_leaks(`
+appears before `STAGES: List[Stage]` in the source.
+
+**This is the same failure mode as the ledger that recorded verified=18 against
+anchored=16.** A check that cannot fail is not a check.
+
+### 2. The leak detector flagged prose
+
+The first version matched the letters `wif` anywhere in a console argument, so it
+flagged the relay's own fail-closed alert - a static message that leaks nothing and
+is exemplary behaviour. A detector that cries wolf gets switched off.
+
+Fixed by stripping string literals before the keyword scan while keeping template
+interpolations, which are real values. Calibrated in both directions: four real
+leak forms are caught, three prose forms are not.
+
+### 3. Evidence collection could crash the verdict
+
+`check()` wrapped each stage detector in try/except but collected evidence outside
+it, so a hostile source raised instead of returning a non-conforming verdict. **A
+check that raises instead of reporting is not fail-closed, it is fail-absent - and
+an absent check reads as a pass to any caller that only inspects the verdict.** The
+evidence scan and both leak scans are now guarded.
+
+---
+
+## What to do with this
+
+| # | action | effort | effect |
+|---|---|---|---|
+| 1 | Set `STEEM_POSTING_WIF` and `HIVE_POSTING_WIF` | **configuration only** | 57 attestation ops stop using the ACTIVE key; no code change |
+| 2 | Give `relay.ts` an audit trail | small | answers who signed what, and whether an op was refused |
+| 3 | Put the budget and repeat guard from `budget.py` in front of `relay.ts` | small | stops the convert-loop class permanently |
+| 4 | Add a policy gate before key resolution in `relay.ts` | medium | stage 2 of 6; the orchestrator shows the shape |
+| 5 | Route relays through `packages/core` instead of reimplementing | large | 6/6 instead of 3/6, and one signing path for the whole estate |
+
+Action 1 alone removes fund-moving capability from the automated broadcaster, and
+it is a configuration change.
+
+---
+
+*Read-only throughout. No keys read, no transactions signed, nothing broadcast.*

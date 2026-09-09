@@ -108,6 +108,65 @@ class PropResult:
                 "required": self.required, "scope": self.scope, "why": self.why}
 
 
+# ---------------------------------------------------------------------------
+# Function-scoped detection
+# ---------------------------------------------------------------------------
+# A regex over a whole file cannot tell whether a guard is in the function that
+# needs it. R-05 shipped that way and produced a false positive: backup.ts passes
+# `threshold` to shardSecret, so the property read as satisfied, while the actual
+# reconstruction function in shamir.ts never receives a threshold and cannot check
+# one. The property is about the CALLEE. So scope the search to its body.
+
+_RECONSTRUCT_NAMES = (
+    "reconstructSecret", "recoverSecret", "combineShares", "combine",
+    "reconstruct", "lagrangeInterpolate", "recoverKey",
+)
+
+
+def function_body(src: str, names: Sequence[str] = _RECONSTRUCT_NAMES) -> Optional[str]:
+    """Return the body of the first reconstruction function found, else None.
+
+    Brace-matched, so a nested function does not truncate it.
+    """
+    for name in names:
+        i = src.find(name)
+        while i >= 0:
+            b = src.find("{", i)
+            if b < 0:
+                break
+            depth = 0
+            for j in range(b, len(src)):
+                ch = src[j]
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return src[b:j + 1]
+            i = src.find(name, i + 1)
+    return None
+
+
+_THRESHOLD_GUARD = re.compile(
+    r"(threshold|minShares|requiredShares|t\b)[^;]{0,60}(>|>=)\s*"
+    r"(shares|parsed|points|list)\w*\.length"
+    r"|(shares|parsed|points)\w*\.length\s*(<|<=)[^;]{0,40}(threshold|minShares|requiredShares|\bt\b)"
+    r"|insufficient\s+shares",
+    re.I)
+
+
+def reconstruction_refuses_too_few(src: str) -> bool:
+    """True only if the reconstruction function itself guards on share count.
+
+    Returns False when there is no reconstruction function to inspect - an absent
+    function is not a satisfied property.
+    """
+    body = function_body(src)
+    if body is None:
+        return False
+    return bool(_THRESHOLD_GUARD.search(body))
+
+
 PROPERTIES: List[Property] = [
     Property("R-01", "Constant-time comparison for MAC or password verification",
              "A byte-by-byte compare that returns early leaks how many leading bytes "
@@ -136,9 +195,10 @@ PROPERTIES: List[Property] = [
     Property("R-05", "Threshold reconstruction refuses too-few shares",
              "Shamir reconstruction from fewer than threshold shares does not fail - it "
              "silently returns a WRONG secret. That is the classic pitfall and it must be "
-             "an explicit refusal.",
-             lambda s: bool(re.search(r"threshold", s, re.I))
-                    and bool(re.search(r"shares?\.length\s*<|length\s*<\s*t\b|insufficient", s)),
+             "an explicit refusal. Checked inside the reconstruction function's own "
+             "body, not anywhere in the file - a caller that passes a threshold does "
+             "not satisfy a property about the callee that interpolates.",
+             reconstruction_refuses_too_few,
              scope=BACKUP),
 
     Property("R-06", "Secret state sealed inside an AEAD envelope",

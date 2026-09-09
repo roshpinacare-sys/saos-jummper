@@ -232,6 +232,36 @@ docstring said so) have the same shape: a conclusion drawn from what was in fron
 of me without asking whether that was the whole thing. Both are recorded rather
 than quietly edited away.
 
+## The six-stage signing contract, measured
+
+`src/jumpper/signingcontract.py` + `docs/SIGNING-CONTRACT.md`, derived from reading
+all 968 lines of `Saosmartwallet/packages/core/src/signing/orchestrator.ts`.
+
+| file | repo | score | safe to hold funds |
+|---|---|---|---|
+| `signing/orchestrator.ts` | Saosmartwallet | **6/6** | **yes** |
+| `relay.ts` | saos-dex | **3/6** | no |
+| `anchor-live.ts` | saos-sovereign-platform | **1/6** | no |
+
+**The code designed to hold funds conforms completely. The code that actually
+broadcasts to mainnet conforms to half of it. They are not connected.**
+
+This also corrected one of my own recommendations. I had reported that 57 of 62
+attestation operations were signed with the ACTIVE key and recommended editing
+`buildOp`. Reading the relay showed it already prefers the POSTING key and derives
+the authority from whichever key it found:
+
+    const steemAuth = steemPost ? "posting" : "active";
+
+**So it is a configuration gap, not a code gap.** Setting `STEEM_POSTING_WIF` and
+`HIVE_POSTING_WIF` removes fund-moving capability from the automated broadcaster
+with no code change at all. Rule H-11's fix text was corrected to say so.
+
+Three defects in the contract module were found by its own tests, including one
+where a bad splice silently replaced a helper with a lambda and `check()` still
+returned 6/6 - a broken detector that looked green. All three are documented
+rather than quietly fixed.
+
 ## Why this project
 
 An audit of 8 repositories and 3 parallel development tracks found one pattern:
@@ -327,6 +357,7 @@ presented as final.
     src/jumpper/solana.py        memo anchoring, measured on mainnet (5000 lamports)
     src/jumpper/crosschain.py    commitment equality across independent mainnets
     src/jumpper/budget.py        rolling budget + repeat guard, all fail-closed
+    src/jumpper/signingcontract.py  six-stage signing gate, measured across the estate
     src/jumpper/freeops.py       capability matrix: 12 free vs 5 never-free, honest limits
     src/jumpper/anchor.py        ETH calldata + EIP-2028/EIP-7623 gas model (settlement tier)
     src/jumpper/witness.py       5-chain keyless read-only probes
@@ -339,6 +370,7 @@ presented as final.
     tests/test_hardening.py      35 assertions: every rule pinned to its real defect
     tests/test_crosschain.py     31 assertions on real ETH + SOL mainnet transactions
     tests/test_budget.py         32 assertions replaying the real convert loop
+    tests/test_signingcontract.py 17 assertions, calibrated in both directions
     tests/fixtures/              100 real HIVE account-history entries
     tests/golden_vectors.json    cross-language validation vectors
     scripts/demo_end_to_end.py   full pipeline with live witness
@@ -353,6 +385,7 @@ presented as final.
     docs/HARDENING.md            the gate, the rules, and how to get a waiver
     docs/CROSS-CHAIN-PROOF.md    U-01 resolved: same commitment on two mainnets
     docs/BUDGET-GUARD.md         the control that stops a runaway loop
+    docs/SIGNING-CONTRACT.md     who conforms to the six-stage gate, and who does not
     docs/TESTING.md              coverage and real transcripts
 
 ## Run it

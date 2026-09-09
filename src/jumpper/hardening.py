@@ -276,8 +276,12 @@ RULES: List[Rule] = [
          "(ACTIVE). Only the 5 saos value_lock operations used POSTING.",
          "ACTIVE can transfer every asset in the account. Signing a data attestation with "
          "it hands fund-moving capability to an automated broadcaster.",
-         "Use required_posting_auths for anything that only publishes data. Same RC cost, "
-         "same payload size - the migration is free.",
+         "Set STEEM_POSTING_WIF and HIVE_POSTING_WIF. saos-dex/relay.ts ALREADY prefers "
+         "the posting key and derives the authority from whichever key it found "
+         "(steemAuth = steemPost ? posting : active), so the 57 ACTIVE-signed "
+         "attestations are a CONFIGURATION gap, not a code gap. Same RC cost and same "
+         "payload size either way. For code that does not yet do this, use "
+         "required_posting_auths for anything that only publishes data.",
          _find(r"required_auths\W{0,4}\s*[:=]\s*\[\s*\S{3,22}")),
 
     Rule("H-12", "Testnet or devnet used as a silent default", HIGH, BLOCK,

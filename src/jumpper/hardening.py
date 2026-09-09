@@ -335,6 +335,46 @@ RULES: List[Rule] = [
          "Use a fine-grained token: Contents read/write on one repository, short expiry, no "
          "admin scopes, no workflow scope unless CI needs it.",
          _find(r"admin:(org|enterprise|public_key|ssh_signing_key|repo_hook|gpg_key)")),
+    Rule("H-18", "A single hash pass used as a key derivation function", HIGH, BLOCK,
+         "W-04: the superseded wallet salt path applied sha256 once and called the "
+         "result a salt-derived key. Contrast packages/core/src/crypto/kdf.ts, which "
+         "uses Argon2id at 64 MiB and t=3 so an offline guess costs about a GPU-second.",
+         "A fast hash is designed to be cheap. Password-derived key material must be "
+         "expensive to compute, or an offline attacker wins by brute force.",
+         "Use Argon2id, scrypt or PBKDF2 with a published cost parameter. Store the "
+         "params and salt with the verifier. One SHA-256 pass is a fingerprint, not a KDF.",
+         _find(r"sha256\s*\([^)]*(password|passphrase|secret|pass)[^)]*\)", re.I)),
+
+    Rule("H-19", "Secret comparison that is not constant time", HIGH, BLOCK,
+         "packages/core/src/crypto/kdf.ts uses timingSafeEqual with length-safe padding "
+         "and states that comparisons are constant time. A plain equality check on a "
+         "digest or key is not.",
+         "Byte-by-byte comparison returns early on the first difference, leaking how "
+         "many leading bytes matched. That is a real remote timing oracle on MACs and "
+         "password verifiers.",
+         "Compare with timingSafeEqual (Node), hmac.compare_digest (Python) or an "
+         "equivalent constant-time primitive, after length-safe padding.",
+         _find(r"(digest|mac|hash|signature|verifier|token)\s*(===|==)\s*[A-Za-z_$]", re.I)),
+
+    Rule("H-20", "Credential check that throws on mismatch instead of returning false", MEDIUM, REPORT,
+         "packages/core/src/crypto/kdf.ts deliberately makes verifyPassword degrade to "
+         "false rather than throw, so a wrong password is indistinguishable from a right "
+         "one by error type.",
+         "A thrown error on mismatch gives the caller - and any observer of logs or HTTP "
+         "status - a distinct signal for 'exists but wrong' versus 'does not exist'.",
+         "Return a boolean from verification. Reserve exceptions for malformed input, "
+         "never for a failed credential check.",
+         _find(r"throw[^;\n]*(invalid|wrong|incorrect|mismatch)[^;\n]*(password|passphrase|credential|pin|otp)", re.I)),
+
+    Rule("H-21", "Monorepo layout without declared workspaces", MEDIUM, REPORT,
+         "Saosmartwallet declares no workspaces field and imports packages/core and "
+         "packages/chains by relative path (../../packages/chains). The crypto engine "
+         "therefore has no name, no version and no dependency edge.",
+         "Relative imports across a package boundary break silently on a move or rename, "
+         "give the package no publishable artifact, and stop any other repository from "
+         "consuming it - including the repositories that need it most.",
+         "Declare workspaces, give each package a name and a version, and import by name.",
+         _find(r"from\s+\S*\.\./\.\./packages/")),
 ]
 
 RULE_BY_ID: Dict[str, Rule] = {r.rid: r for r in RULES}

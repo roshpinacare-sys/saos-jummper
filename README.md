@@ -209,6 +209,29 @@ semantics and a raising guard treated as a deny, copied from
 
 See `docs/CROSS-CHAIN-PROOF.md` and `docs/BUDGET-GUARD.md`.
 
+## A correction this repository issued against itself
+
+`docs/WALLET-AUDIT.md` concluded that `Saosmartwallet` had no real cryptography.
+**That is wrong for the current repository** and the document is now marked
+SUPERSEDED at the top, kept unedited as a record.
+
+`packages/core/src/crypto/` was then read directly and contains: Argon2id
+(64 MiB, t=3, constant-time verification that returns false rather than throwing),
+Shamir Secret Sharing over GF(256) that names its own wrong-secret-from-too-few-
+shares pitfall, AES-256-GCM and ChaCha20-Poly1305 envelopes with a pure-TypeScript
+RFC 8439 fallback written because Bun's OpenSSL does not expose chacha20, and
+Fiat-Shamir Schnorr identification over secp256k1 that stores only a curve
+commitment so there is no hash to brute-force offline.
+
+Two of the six layers remain **claimed, not confirmed**: `signing/orchestrator.ts`
+(41,819 bytes) and `policy/engine.ts` (20,564 bytes) were never read. See
+`docs/WALLET-AUDIT-CORRECTION.md`.
+
+The error and its twin (assuming two Merkle conventions matched because a
+docstring said so) have the same shape: a conclusion drawn from what was in front
+of me without asking whether that was the whole thing. Both are recorded rather
+than quietly edited away.
+
 ## Why this project
 
 An audit of 8 repositories and 3 parallel development tracks found one pattern:

@@ -1,4 +1,3 @@
-# hardening:allow-file ALL reason=module docstring quotes the on-chain op shape it is designed to replace
 """Forensic analysis of LIVE chain operations.
 
 This module exists because the estate's own reports described its state, and the

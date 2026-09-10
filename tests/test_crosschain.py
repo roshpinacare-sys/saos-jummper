@@ -1,4 +1,4 @@
-# hardening:allow-file ALL reason=test fixtures reproduce real mainnet payloads the module is designed to verify
+# hardening:allow-file H-12 reason=fixtures reproduce the real devnet default the rule exists to catch
 """Tests for Solana memo anchoring and cross-chain commitment equality.
 
 Every fixture is real data read from mainnet on 2026-09-08 via public RPC: the

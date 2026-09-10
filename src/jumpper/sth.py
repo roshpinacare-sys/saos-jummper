@@ -72,7 +72,7 @@ class SthError(ValueError):
     pass
 
 
-STH_VERSION = 2
+STH_VERSION = 3
 ANCHOR_ID = "saos-sth.anchor.v1"
 
 CONV_DUPLICATE = "duplicate"     # jumpper/merkle.py - last node carried up unchanged
@@ -96,6 +96,14 @@ class SignedTreeHead:
     timestamp: str
     signature: Optional[str] = None
     convention: str = CONV_DUPLICATE
+    # epoch namespaces tree_size. Without it a tree_size is unique only within one
+    # process lifetime - and eight heights on HIVE mainnet were found carrying two or
+    # three contradictory roots each because the pulse chain restarted and its counter
+    # began again. Height 1764 carried two roots thirty seconds apart; height 552
+    # carried three in seven minutes. packing.py and heightguard.py were both given an
+    # epoch for exactly this reason. This was the third format and the one still
+    # missing it.
+    epoch: int = 0
 
     def __post_init__(self) -> None:
         if len(self.root) != 64 or any(c not in "0123456789abcdef" for c in self.root):
@@ -106,17 +114,20 @@ class SignedTreeHead:
             raise SthError("log_id required")
         if self.convention not in CONVENTIONS:
             raise SthError("convention must be one of %r" % (CONVENTIONS,))
+        if not isinstance(self.epoch, int) or isinstance(self.epoch, bool) or self.epoch < 0:
+            raise SthError("epoch must be a non-negative integer")
 
     def digest(self) -> str:
         """Stable identity of this head, independent of transport encoding."""
-        blob = "%s|%d|%s|%s|%s" % (self.log_id, self.tree_size, self.root,
+        blob = "%s|%d|%d|%s|%s|%s" % (self.log_id, self.epoch, self.tree_size, self.root,
                                    self.timestamp, self.convention)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
     def as_dict(self) -> Dict[str, Any]:
-        return {"logId": self.log_id, "treeSize": self.tree_size, "root": self.root,
-                "timestamp": self.timestamp, "signature": self.signature,
-                "convention": self.convention, "digest": self.digest()}
+        return {"logId": self.log_id, "epoch": self.epoch, "treeSize": self.tree_size,
+                "root": self.root, "timestamp": self.timestamp,
+                "signature": self.signature, "convention": self.convention,
+                "digest": self.digest()}
 
 
 # --------------------------------------------------------------------------
@@ -139,8 +150,12 @@ def encode_heads(heads: Sequence[SignedTreeHead]) -> str:
     convs = {h.convention for h in heads}
     if len(convs) != 1:
         raise SthError("one anchor batch covers exactly one convention; got %d" % len(convs))
+    epochs = {h.epoch for h in heads}
+    if len(epochs) != 1:
+        raise SthError("one anchor batch covers exactly one epoch; got %d" % len(epochs))
     lines = ["%d:%s" % (h.tree_size, b64u(h.root)) for h in heads]
-    payload = "%d|%s|%s|%s" % (STH_VERSION, log_id, heads[0].convention, ",".join(lines))
+    payload = "%d|%d|%s|%s|%s" % (STH_VERSION, heads[0].epoch, log_id,
+                                  heads[0].convention, ",".join(lines))
     # Fail closed. A payload larger than HIVE_CUSTOM_JSON_DATA_MAX_LENGTH cannot
     # be broadcast at all, so producing one silently would fail later, on chain,
     # after the signing step. Refuse here instead.
@@ -155,22 +170,28 @@ def encode_heads(heads: Sequence[SignedTreeHead]) -> str:
 
 def decode_heads(payload: str) -> List[SignedTreeHead]:
     parts = payload.split("|")
-    if len(parts) != 4:
-        raise SthError("payload must be version|logId|convention|heads")
+    if len(parts) != 5:
+        raise SthError("payload must be version|epoch|logId|convention|heads")
     try:
         ver = int(parts[0])
     except ValueError as exc:
         raise SthError("version must be an integer") from exc
     if ver != STH_VERSION:
         raise SthError("unsupported STH payload version %d" % ver)
-    log_id = parts[1]
+    try:
+        epoch = int(parts[1])
+    except ValueError as exc:
+        raise SthError("epoch must be an integer") from exc
+    if epoch < 0:
+        raise SthError("epoch cannot be negative")
+    log_id = parts[2]
     if not log_id:
         raise SthError("log_id required")
-    conv = parts[2]
+    conv = parts[3]
     if conv not in CONVENTIONS:
         raise SthError("unknown convention %r" % conv)
     out: List[SignedTreeHead] = []
-    for chunk in parts[3].split(","):
+    for chunk in parts[4].split(","):
         if not chunk:
             raise SthError("empty head entry")
         if ":" not in chunk:
@@ -185,7 +206,8 @@ def decode_heads(payload: str) -> List[SignedTreeHead]:
         except GrapheneError as exc:
             raise SthError(str(exc)) from exc
         out.append(SignedTreeHead(log_id=log_id, tree_size=size, root=root,
-                                  timestamp="", signature=None, convention=conv))
+                                  timestamp="", signature=None, convention=conv,
+                                  epoch=epoch))
     return out
 
 
@@ -208,7 +230,7 @@ def heads_per_operation(sample: "SignedTreeHead") -> int:
     be planned accurately in the first place.
     """
     from .protocol import HIVE_CUSTOM_JSON_DATA_MAX_LENGTH
-    prefix = "%d|%s|%s|" % (STH_VERSION, sample.log_id, sample.convention)
+    prefix = "%d|%d|%s|%s|" % (STH_VERSION, sample.epoch, sample.log_id, sample.convention)
     overhead = len(prefix.encode("utf-8"))
     one = len(("%d:%s" % (sample.tree_size, b64u(sample.root))).encode("utf-8"))
     entry = one + 1                      # plus the separator between entries

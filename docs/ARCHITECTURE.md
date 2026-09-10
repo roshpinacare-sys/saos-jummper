@@ -1,6 +1,5 @@
 # SAOS JUMPPER - Architecture
 
-<!-- hardening:allow-file ALL reason=this document quotes the on-chain payloads and defective patterns it reports; quoting a finding is not committing one -->
 
 Version 0.1 (design). No production code written yet.
 Feasibility already demonstrated on Ethereum mainnet: block 25,929,672, status 0x1.

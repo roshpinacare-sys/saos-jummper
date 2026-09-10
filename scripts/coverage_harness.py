@@ -372,7 +372,11 @@ def _hardening():
     m = importlib.import_module("jumpper.hardening")
     assert len(m.RULES) == 21, "rules: %d" % len(m.RULES)
     assert sorted(m.MARKDOWN_RULES) == ["H-08", "H-09", "H-10"], sorted(m.MARKDOWN_RULES)
-    assert m.code_only("a.md", "prose devnet.solana.com") == "", "markdown prose must not be scanned"
+    # code_only() returns markdown verbatim ON PURPOSE: since the markdown fix,
+    # the filtering lives in scan_file via MARKDOWN_RULES, not in code_only.
+    # Asserting the old behaviour here was testing a design that no longer exists.
+    assert m.is_markdown("a.md") and not m.is_markdown("a.py"), "is_markdown must classify"
+    assert sorted(m.MARKDOWN_RULES) == sorted(m.SECRET_BEARING), "markdown gets the secret rules only"
     assert m.code_only("a.py", "window.localStorage.setItem(k,v)") != "", "python code must be scanned"
     r = m.scan_tree({"a.ts": "window.localStorage.setItem(k,v)"})
     assert not r["pass"], r["verdict"]

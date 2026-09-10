@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=quotes the real rotation script defaults and the masked keys its evidence stored -->
 
 # Rotation Contract - the control that was missing on 2026-09-08
 

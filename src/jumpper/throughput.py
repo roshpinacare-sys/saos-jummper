@@ -1,4 +1,3 @@
-# hardening:allow-file ALL reason=module docstring quotes the on-chain op shape it is designed to replace
 """The free-throughput multiplier stack, with every number marked measured or not.
 
 This module exists because "free" is not a single fact. It is a stack of

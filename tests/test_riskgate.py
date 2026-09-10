@@ -1,4 +1,3 @@
-# hardening:allow-file ALL reason=fixtures reproduce the real confidence-gate input contract
 """Tests for risk-gate escalation, written against the real confidence-gate.ts.
 
 Its score sanitisation and prohibited short-circuit are correct and are reproduced

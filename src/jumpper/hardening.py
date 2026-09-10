@@ -215,7 +215,9 @@ def code_only(path: str, content: str) -> str:
     negative nobody sees."""
     p = (path or "").lower()
     if p.endswith(".md") or p.endswith(".markdown"):
-        return chr(10).join(m.group(1) for m in _MD_FENCE_RX.finditer(content))
+        # Handled by scan_file, not here: markdown gets the secret rules over the
+        # whole file and no code rules at all. See MARKDOWN_RULES.
+        return content
     if p.endswith(".py"):
         out = _PY_BLOCK_RX.sub(lambda m: chr(10) * m.group(0).count(chr(10)), content)
         return _PY_LINE_RX.sub("", out)
@@ -455,15 +457,33 @@ def _matches_glob(path: str, glob: str) -> bool:
     return bool(fnmatch.fnmatch(path, glob) or fnmatch.fnmatch(path.split("/")[-1], glob))
 
 
+# Markdown is documentation, not code. It cannot execute localStorage.setItem and
+# it cannot emit required_auths, so the code-pattern rules only ever produce false
+# positives there - which is exactly why 11 docs ended up carrying a blanket
+# allow-file ALL. But a document CAN leak a secret: passwords, WIFs and tokens get
+# pasted into READMEs constantly, and that is a real breach rather than a quotation.
+# So markdown is scanned for the secret rules over the WHOLE file, and for nothing
+# else. That is both more correct and it removes the need for the blanket waivers.
+MARKDOWN_RULES = frozenset(SECRET_BEARING)
+
+
+def is_markdown(path: str) -> bool:
+    p = (path or "").lower()
+    return p.endswith(".md") or p.endswith(".markdown")
+
+
 def scan_file(path: str, content: str, waivers: Sequence[Waiver] = (),
               now: Optional[int] = None,
               collect_allowances: Optional[List[Dict[str, Any]]] = None) -> List[Violation]:
     allows = parse_allowances(content)
     # Scan executable text only. Line numbers survive because stripped regions
     # are replaced by an equal number of newlines.
-    scannable = code_only(path, content)
+    scannable = content if is_markdown(path) else code_only(path, content)
+    active = MARKDOWN_RULES if is_markdown(path) else None
     out: List[Violation] = []
     for rule in RULES:
+        if active is not None and rule.rid not in active:
+            continue
         try:
             ev = rule.detect(path, scannable)
         except Exception:

@@ -371,22 +371,23 @@ def _attestation():
 def _hardening():
     m = importlib.import_module("jumpper.hardening")
     assert len(m.RULES) == 21, len(m.RULES)
+    assert sorted(m.MARKDOWN_RULES) == ["H-08", "H-09", "H-10"], sorted(m.MARKDOWN_RULES)
     assert m.code_only("a.md", "prose devnet.solana.com") == ""
     assert m.code_only("a.py", "window.localStorage.setItem(k,v)") != ""
     r = m.scan_tree({"a.ts": "window.localStorage.setItem(k,v)"})
     assert not r["pass"] and "H-01" in [v["id"] for v in r["blocking"]]
     assert m.scan_tree({"a.md": "prose devnet.solana.com"})["pass"], "markdown: secret rules only"
-    assert m.scan_tree({"a.md": "pass: zrLStQf5RS1GxqpTwZJO6goLKUL8iNuV"})["blockingCount"] == 1
-    assert sorted(m.MARKDOWN_RULES) == ["H-08", "H-09", "H-10"]
-    assert m.redact_evidence("H-08", chr(34) + "zrLStQf5RS1GxqpTwZJO6goLKUL8iNuV" + chr(34)) != chr(34) + "zrLStQf5RS1GxqpTwZJO6goLKUL8iNuV" + chr(34)
+    sec = m.scan_tree({"a.md": "pass: zrLStQf5RS1GxqpTwZJO6goLKUL8iNuVK1UY"})
+    assert sec["blockingCount"] == 1, sec["blockingCount"]
+    red = m.redact_evidence("H-08", "line 1: pass: zrLStQf5RS1GxqpTwZJO6goLKUL8iNuVK1UY")
+    assert "zrLStQf5" not in red, "the scanner must never echo the secret it found"
+    assert m.redact_evidence("H-01", "localStorage.setItem") == "localStorage.setItem"
     try:
         m.waiver("H-01", "*", "x", "owner", 99999999999)
         raise AssertionError("a global waiver must be refused")
     except m.HardeningError:
         pass
     return "21 rules; markdown carries secret rules only; a secret in a doc is caught and redacted; global waiver refused"
-
-
 
 @check("signingcontract")
 def _signingcontract():
@@ -413,27 +414,32 @@ def _signingcontract():
 @check("recovery")
 def _recovery():
     m = importlib.import_module("jumpper.recovery")
-    rosh = m.coverage("roshpina/kernel/orchestrator/audit.ts",
-                      hashed_fields=["id", "tenantId", "actionType", "outcome", "prevHash"],
-                      record_fields=["id", "tenantId", "actionId", "actionType", "source",
-                                     "outcome", "reason", "occurredAt", "prevHash", "hash", "signature"],
-                      genesis_bound_to_instance=False)
-    assert sorted(rosh.unanswered) == ["when", "who", "why"], rosh.unanswered
-    assert rosh.unbound == ["actionId", "occurredAt", "reason", "source"]
-    saos = m.coverage("Saosmartwallet/packages/core/src/audit/audit.ts",
-                      hashed_fields=["seq", "timestamp", "type", "actor", "target", "result",
-                                     "reason", "previousEventHash"],
-                      record_fields=["seq", "timestamp", "type", "actor", "target", "result",
-                                     "reason", "previousEventHash", "eventHash"],
-                      genesis_bound_to_instance=True)
-    assert saos.sound and saos.unbound == []
+    assert len(m.PROPERTIES) == 8, len(m.PROPERTIES)
+    assert all(p.scope in (m.UNIVERSAL, m.BACKUP, m.VAULT) for p in m.PROPERTIES)
     assert not m.reconstruction_refuses_too_few(
         "async function reconstructSecret(shares) { return lagrange(shares); }")
     assert m.reconstruction_refuses_too_few(
         "function reconstructSecret(shares, t) { if (shares.length < t) throw new Error(); }")
-    return "roshpina audit leaves who/when/why unbound; shamir guard correctly reported absent"
-
-
+    q = chr(39)
+    bad = ("function pc(e) { return createHash(" + q + "sha256" + q + ").update(e).digest(); } "
+           + "function ps(b) { return createHmac(" + q + "sha256" + q + ", b.metadata.checksum); }")
+    assert m.public_keyed_mac(bad), "a MAC keyed by metadata.checksum must be flagged"
+    assert not m.public_keyed_mac("createHmac(" + q + "sha256" + q + ", derivedKey)")
+    good = ("const k = randomBytes(32); k.fill(0); restore into a fresh vault only; "
+            + "aes-256-gcm authTag seal(state); threshold shares.length < t; "
+            + "inactiveDays beneficiar; beneficiaries.length; "
+            + "import { bytesEqual } from " + q + "../encoding" + q + ";")
+    r = m.check(good, kind=m.BACKUP)
+    assert r["propertiesTotal"] == 8, r["propertiesTotal"]
+    assert m.check("class V { lock() { k.fill(0); } }", kind=m.VAULT)["propertiesTotal"] == 3
+    am = m.check_anti_mock("const leg = { source: 1 }; gated; gateReason; assertExecutable(p); gas measured;")
+    assert am["allPresent"], am
+    try:
+        m.check("x", kind="nonsense")
+        raise AssertionError("an unknown kind must be refused")
+    except m.RecoveryError:
+        pass
+    return "8 properties, vault scoped to 3; the real reconstructSecret guard is absent; a public-keyed MAC is flagged"
 
 @check("riskgate")
 def _riskgate():

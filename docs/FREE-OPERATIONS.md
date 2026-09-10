@@ -1,6 +1,5 @@
 # Free Operations
 
-<!-- hardening:allow-file ALL reason=findings report quoting on-chain custom_json payloads -->
 
 What costs money elsewhere and is free on our network.
 

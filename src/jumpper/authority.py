@@ -1,4 +1,4 @@
-# hardening:allow-file ALL reason=module docstring quotes the on-chain op shape it is designed to replace
+# hardening:allow-file H-11 reason=builds BOTH authority variants by policy; the active branch must be able to emit required_auths
 """Authority least-privilege policy for Graphene custom_json.
 
 The finding

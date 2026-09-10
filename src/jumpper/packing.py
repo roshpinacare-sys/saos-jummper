@@ -1,4 +1,4 @@
-# hardening:allow-file ALL reason=module docstring quotes the on-chain op shape it is designed to replace
+# hardening:allow-file H-11 reason=the wrapper format string is measured for byte accounting; it is data, not a signed operation
 """Multi-root packing: commit many batches in ONE free operation.
 
 The finding

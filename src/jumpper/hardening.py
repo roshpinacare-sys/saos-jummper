@@ -104,7 +104,7 @@ class Violation:
                 "title": self.title, "fix": self.fix}
 
 
-# hardening:allow-file ALL reason=rule definitions and audit text quote the very
+# hardening:allow-file H-05,H-06,H-12,H-17,H-20 reason=rule origin and fix strings necessarily quote the defects they detect; they are runtime data so no comment stripper can remove them
 # patterns and defects this module detects; scanning them without an allowance
 # would report documentation as a violation.
 

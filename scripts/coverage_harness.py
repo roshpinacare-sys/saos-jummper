@@ -82,22 +82,32 @@ PAYLOAD = ("{" + DQ + "protocol" + DQ + ":" + DQ + "saos-dex/v1" + DQ + ","
 @check("canonical")
 def _canonical():
     m = importlib.import_module("jumpper.canonical")
-    a = m.canonical_json({"b": 1, "a": 2})
-    assert a == m.canonical_json({"a": 2, "b": 1}), "key order must not matter"
+    a = m.canonical({"b": 1, "a": 2})
+    assert a == m.canonical({"a": 2, "b": 1}), "key order must not matter"
     assert " " not in a
-    return "key-order independent, no whitespace"
+    assert isinstance(m.canonical_bytes({"a": 1}), (bytes, bytearray))
+    try:
+        m.canonical(float("nan"))
+        raise AssertionError("NaN must be refused")
+    except m.CanonicalizationError:
+        pass
+    return "key-order independent, no whitespace, NaN refused"
+
 
 
 @check("merkle")
 def _merkle():
     m = importlib.import_module("jumpper.merkle")
-    lv = [m.leaf_hash(str(i).encode()) for i in range(7)]
+    lv = [m.sha256_hex(str(i).encode()) for i in range(7)]
     r = m.root(lv)
     tr = m.build(lv)
     assert tr[-1][0] == r
-    assert m.verify(lv[3], tr[1][3], r), "inclusion proof must verify"
+    pf = m.proof(lv, 3)
+    assert m.verify(lv[3], pf, r), "inclusion proof must verify"
+    assert not m.verify(lv[3], pf, "0" * 64), "a wrong root must fail"
     assert tr[1][-1] == lv[-1], "odd node carried up unchanged, not re-hashed"
-    return "7 leaves, inclusion proof verified, odd-node convention pinned"
+    return "7 leaves, inclusion proof verifies, odd-node convention pinned"
+
 
 
 @check("claim")
@@ -125,13 +135,20 @@ def _claim():
 @check("batch")
 def _batch():
     m = importlib.import_module("jumpper.batch")
+    cl = importlib.import_module("jumpper.claim")
     b = m.Batcher(max_leaves=4, max_age=60)
+    sealed = []
     for i in range(4):
-        b.add(m.make_claim({"i": i}, TS, public=True, source="h"), now=1000 + i)
-    assert b.sealed and b.sealed[-1].leaf_count == 4, "must auto-seal at capacity"
-    sb = b.sealed[-1]
-    assert sb.height == 1 and sb.leaf_count == 4
-    return "auto-seal at capacity, height 1, 4 leaves"
+        sb = b.add(cl.make_claim({"i": i}, TS, public=True, source="h"), now=1000 + i)
+        if sb is not None:
+            sealed.append(sb)
+    assert sealed, "must auto-seal at capacity"
+    sb = sealed[-1]
+    assert sb.leaf_count == 4 and sb.height == 1, (sb.leaf_count, sb.height)
+    assert len(sb.leaf_hashes) == 4 and len(sb.proofs) == 4
+    assert b.seal_if_due(now=9999) is None, "an empty batch must not seal"
+    return "auto-seal at capacity, height 1, 4 leaves, 4 inclusion proofs"
+
 
 
 @check("anchor")
@@ -139,19 +156,21 @@ def _anchor():
     m = importlib.import_module("jumpper.anchor")
     c = m.estimate_cost(PAYLOAD.encode(), 1050884809)
     assert c.total_gas == 30920, c.total_gas
-    assert c.is_eip7623_floor
+    assert c.gas_floor > c.gas_eip2028, "the EIP-7623 floor must bind"
+    assert "floor" in c.binding_rule.lower(), c.binding_rule
     assert m.decode_calldata("0x" + PAYLOAD.encode().hex())["height"] == 108
-    return "30920 gas (EIP-7623 floor), calldata round-trip"
+    return "30920 gas with the EIP-7623 floor binding; calldata round-trip"
+
 
 
 @check("verify")
 def _verify():
     m = importlib.import_module("jumpper.verify")
     mk = importlib.import_module("jumpper.merkle")
-    lv = [mk.leaf_hash(str(i).encode()) for i in range(5)]
+    lv = [mk.sha256_hex(str(i).encode()) for i in range(5)]
     tr = mk.build(lv)
-    assert m.verify_inclusion(lv[2], tr[1][2], tr[-1][0]), "inclusion must verify"
-    assert not m.verify_inclusion(lv[2], tr[1][2], "0" * 64), "a wrong root must fail"
+    assert m.verify_inclusion(lv[2], mk.proof(lv, 2), tr[-1][0]), "inclusion must verify"
+    assert not m.verify_inclusion(lv[2], mk.proof(lv, 2), "0" * 64), "a wrong root must fail"
     return "inclusion proof verifies against the real root and fails against a wrong one"
 
 
@@ -302,15 +321,18 @@ def _heightguard():
     h = [m.Commitment("", 1764, r1, "2026-09-09T18:27:21", 109770502, "49833"),
          m.Commitment("", 1764, r2, "2026-09-09T18:27:51", 109770512, "49834")]
     a = m.audit(h)
-    assert a["forks"] == 1 and a["forkDetails"][0]["windowSeconds"] == 30
+    assert a["forks"] == 1, a["forks"]
     led = m.HeightLedger()
     led.add(h[0])
     assert led.check("", 1764, r2)["decision"] == m.REFUSE
     assert led.check("", 1764, r1)["decision"] == m.REPUBLISH
     rep = m.remediation_report(h)
-    assert rep["entries"][0]["status"] == "AMBIGUOUS"
-    assert rep["entries"][0]["canonicalRoot"] is None
+    e = rep["entries"][0]
+    assert e["status"] == "AMBIGUOUS" and e["canonicalRoot"] is None
+    assert e["windowSeconds"] == 30, e["windowSeconds"]
+    assert [x["block"] for x in e["records"]] == [109770502, 109770512]
     return "height-1764 fork at 30 s detected, contradicting root refused, no canonical root invented"
+
 
 
 @check("audit")
@@ -348,26 +370,30 @@ def _attestation():
 @check("hardening")
 def _hardening():
     m = importlib.import_module("jumpper.hardening")
-    assert len(m.RULES) == 21
+    assert len(m.RULES) == 21, len(m.RULES)
     assert m.code_only("a.md", "prose devnet.solana.com") == ""
     assert m.code_only("a.py", "window.localStorage.setItem(k,v)") != ""
     r = m.scan_tree({"a.ts": "window.localStorage.setItem(k,v)"})
     assert not r["pass"] and "H-01" in [v["id"] for v in r["blocking"]]
     assert m.scan_tree({"a.md": "prose devnet.solana.com"})["pass"], "markdown: secret rules only"
     assert m.scan_tree({"a.md": "pass: zrLStQf5RS1GxqpTwZJO6goLKUL8iNuV"})["blockingCount"] == 1
+    assert sorted(m.MARKDOWN_RULES) == ["H-08", "H-09", "H-10"]
+    assert m.redact_evidence("H-08", chr(34) + "zrLStQf5RS1GxqpTwZJO6goLKUL8iNuV" + chr(34)) != chr(34) + "zrLStQf5RS1GxqpTwZJO6goLKUL8iNuV" + chr(34)
     try:
         m.waiver("H-01", "*", "x", "owner", 99999999999)
         raise AssertionError("a global waiver must be refused")
     except m.HardeningError:
         pass
-    return "21 rules; markdown carries secret rules only; a secret in a doc is caught; global waiver refused"
+    return "21 rules; markdown carries secret rules only; a secret in a doc is caught and redacted; global waiver refused"
+
 
 
 @check("signingcontract")
 def _signingcontract():
     m = importlib.import_module("jumpper.signingcontract")
     parts = ["await vault.ensureUnlocked();",
-             "if (d.action !== 1) throw new Error();",
+             "const decision = policyEngine.evaluate(op, cfg);",
+             "if (decision.action !== 1) throw new Error(PolicyDecision.DENY);",
              "const role = funds ? " + DQ + "active" + DQ + " : " + DQ + "posting" + DQ + ";",
              "if (record.role === null) throw new Error();",
              "const { privateKey } = await vault.revealKeyFor(k);",
@@ -383,17 +409,30 @@ def _signingcontract():
     return "6/6 on a conforming signer; prose is not a leak, a logged key is"
 
 
+
 @check("recovery")
 def _recovery():
     m = importlib.import_module("jumpper.recovery")
-    assert m.ROSHPINA.unbound == ["actionId", "occurredAt", "reason", "source"]
-    assert sorted(m.ROSHPINA.as_dict()["unansweredQuestions"]) == ["when", "who", "why"]
-    assert m.SAOSMARTWALLET.sound and m.SAOSMARTWALLET.unbound == []
+    rosh = m.coverage("roshpina/kernel/orchestrator/audit.ts",
+                      hashed_fields=["id", "tenantId", "actionType", "outcome", "prevHash"],
+                      record_fields=["id", "tenantId", "actionId", "actionType", "source",
+                                     "outcome", "reason", "occurredAt", "prevHash", "hash", "signature"],
+                      genesis_bound_to_instance=False)
+    assert sorted(rosh.unanswered) == ["when", "who", "why"], rosh.unanswered
+    assert rosh.unbound == ["actionId", "occurredAt", "reason", "source"]
+    saos = m.coverage("Saosmartwallet/packages/core/src/audit/audit.ts",
+                      hashed_fields=["seq", "timestamp", "type", "actor", "target", "result",
+                                     "reason", "previousEventHash"],
+                      record_fields=["seq", "timestamp", "type", "actor", "target", "result",
+                                     "reason", "previousEventHash", "eventHash"],
+                      genesis_bound_to_instance=True)
+    assert saos.sound and saos.unbound == []
     assert not m.reconstruction_refuses_too_few(
         "async function reconstructSecret(shares) { return lagrange(shares); }")
     assert m.reconstruction_refuses_too_few(
         "function reconstructSecret(shares, t) { if (shares.length < t) throw new Error(); }")
     return "roshpina audit leaves who/when/why unbound; shamir guard correctly reported absent"
+
 
 
 @check("riskgate")
@@ -524,7 +563,7 @@ def _forkwatch():
 
     hist = [rec(49833, "2026-09-09T18:27:21", 109770502, "d7220b5e9ecc953e7e8d" + "0" * 44),
             rec(49834, "2026-09-09T18:27:51", 109770512, "84ae0a0a08ef2f44becc" + "0" * 44)]
-    anchors = m.parse_history(hist)
+    anchors = m.parse_history(hist, "saos-dex.anchor.v1")
     assert len(anchors) == 2, len(anchors)
     assert all(a.height == 1764 for a in anchors)
     forks = m.detect_forks(anchors)

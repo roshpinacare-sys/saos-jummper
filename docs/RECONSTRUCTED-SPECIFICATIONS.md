@@ -213,11 +213,35 @@ Steps 1 through 4 are reading and are already done above. The remaining work:
 | 7 | Check `roshpina` git history for a deleted copy - one commit exists, so the file was either never committed or was committed and removed | the original, if it was ever pushed |
 | 8 | Ask the author. The MANIFEST is written partly in Hebrew and cites a revision history; whoever wrote it has both | the original |
 
-Step 7 is worth trying before anything else: `roshpina` has exactly one commit
-(`e43aa5e1`, "Roshpina v0.1 - Sovereign Trust & Value Platform (Task 115 chosen
-project)"), so if the MANIFEST was ever in that repository it is in that commit. It
-is not in the current tree, which means it was either never committed or was
-committed to a different repository.
+## Step 7 is DONE, and the answer is definitive
+
+Every commit in `roshpina` was enumerated and its full tree listed:
+
+    e43aa5e180  2026-09-07T13:25:35  "Roshpina v0.1 - Sovereign Trust & Value
+                                     Platform (Task 115 chosen project)"
+                 208 blobs   .md files: []        MANIFEST/ROADMAP: NONE
+    c344b9e97c  2026-09-08T03:13:31  audit(addendum) - pushed here by this engagement
+                 209 blobs   .md files: [docs/FORENSIC-AUDIT-ADDENDUM.md]
+    e87623cb94  2026-09-08T03:15:14  audit - pushed here by this engagement
+                 210 blobs   .md files: [docs/FORENSIC-AUDIT-ADDENDUM.md,
+                                         docs/FORENSIC-AUDIT.md]
+
+**The founding commit contains 208 files and zero markdown files.** No README, no
+MANIFEST, no ROADMAP, no documentation of any kind. The only two markdown files in
+the entire history of that repository are the forensic audit documents pushed here
+during this engagement.
+
+So neither specification was ever committed. They existed only outside version
+control - on the author's machine, in a conversation, or in another repository.
+They cannot be recovered from `roshpina` history, which closes step 7 and leaves
+**step 8, asking the author, as the only route to the originals.**
+
+That is worth stating plainly, because it changes the character of the problem.
+This is not a case of documents that were lost. **An 838,280-character kernel was
+committed with no documentation at all, citing two specifications that were never
+committed either.** The kernel is not under-documented; it is undocumented, and the
+only record of its intent is the docstrings, which are good enough that this
+reconstruction was possible at all.
 
 ---
 

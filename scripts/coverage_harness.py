@@ -598,6 +598,47 @@ def _forkwatch():
 
 
 
+@check("remedy")
+def _remedy():
+    m = importlib.import_module("jumpper.remedy")
+    R1 = "a54a51c7524dabc41d09d859f5d642aa836947482ef30467aef6e5a3f66416d0"
+    R2 = "d93e5a50d5e731ca81555b6bfc5dfd7fbc07e9b6e21357ca330e27dd9d3ea05d"
+    report = {"logId": "saos-dex.anchor.v1", "entries": [
+        {"height": 1764, "epoch": None, "status": "AMBIGUOUS", "canonicalRoot": None,
+         "distinctRoots": 2, "anchorCount": 2,
+         "firstCommittedAt": "2026-09-09T18:27:21", "lastCommittedAt": "2026-09-09T18:27:51",
+         "records": [{"root": R1}, {"root": R2}]}]}
+    cs = m.corrections_from_report(report)
+    assert len(cs) == 1 and cs[0].height == 1764
+    assert cs[0].status == m.AMBIGUOUS and cs[0].canonical_root is None
+    pay = m.encode_corrections(cs)
+    assert len(pay.encode()) < 400, len(pay.encode())
+    op = m.build_correction_op("headcorner", cs)
+    assert op[0] == "custom_json" and op[1]["required_posting_auths"] == ["headcorner"]
+    assert op[1]["required_auths"] == [] and "fee" not in op[1]
+    pl = m.plan("headcorner", cs)
+    assert pl["fee"] == 0 and pl["authority"] == "posting" and pl["retracts"] is False
+    assert pl["signing"] == "external-only" and pl["broadcast"] == "never-performed-here"
+    # fail closed: a canonical claim nobody supplied, and an invented root
+    for bad in (lambda: m.Correction("l", 1, m.CANONICAL, 2, [R1, R2]),
+                lambda: m.Correction("l", 1, m.CANONICAL, 2, [R1, R2], canonical_root="c" * 64),
+                lambda: m.Correction("l", 1, m.AMBIGUOUS, 1, [R1]),
+                lambda: m.Correction("l", 1, "MAYBE", 2, [R1, R2])):
+        try:
+            bad(); raise AssertionError("a bad correction was accepted")
+        except m.RemedyError:
+            pass
+    # ambiguous resolves nothing; a supplied canonical root resolves exactly that height
+    anch = [{"height": 1764, "root": R1}, {"height": 1764, "root": R2}]
+    r = m.apply_corrections(anch, cs)
+    assert r["resolvedCount"] == 0 and r["ambiguousCount"] == 1
+    can = m.Correction("saos-dex.anchor.v1", 1764, m.CANONICAL, 2, [R1, R2], canonical_root=R1)
+    r2 = m.apply_corrections(anch, [can])
+    assert r2["resolvedCount"] == 1 and r2["ambiguousCount"] == 0
+    assert m.apply_corrections([{"height": 9, "root": R1}], cs)["unrecordedCount"] == 1
+    return ("eight real forked heights encode to one zero-fee POSTING op; canonical"
+            " requires a supplied root, an invented root is refused, and ambiguous resolves nothing")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

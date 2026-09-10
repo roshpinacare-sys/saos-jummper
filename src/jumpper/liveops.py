@@ -372,3 +372,78 @@ def duplicate_seal_audit(ops: Sequence[Dict[str, Any]], anchor_ids: Sequence[str
                     "%d seals broadcast more than once - %d redundant on-chain records"
                     % (len(dupes), wasted)),
     }
+
+
+def conflicting_height_audit(ops: Sequence[Dict[str, Any]], anchor_ids: Sequence[str],
+                             height_fields: Sequence[str] = ("height", "seq"),
+                             root_fields: Sequence[str] = ("stateRoot", "root", "digest")) -> Dict[str, Any]:
+    """Find heights that carry MORE THAN ONE DISTINCT ROOT.
+
+    Not the same as duplicate_seal_audit, which finds the same seal broadcast
+    repeatedly. That is waste. This finds two different states claiming one height,
+    which is an integrity break: "what was the state at height N?" has two public
+    answers and no way to choose between them.
+
+    Measured on 115 real HIVE anchors read 2026-09-10:
+
+        height 1764  root d7220b5e... 18:27:21 block 109770502 trx 0825c6b3...
+        height 1764  root 84ae0a0a... 18:27:51 block 109770512 trx 9029171e...
+
+    Thirty seconds apart, different blocks, different transactions, different
+    digests, different `at`. Not a re-broadcast - two states, one height. Heights
+    1668 (3.3 min apart) and 1476 (5.3 h apart, straddling a counter reset) show
+    the same. The counter also reset 4488 -> 12 and NO payload carries an epoch
+    field, so every height below 4488 is ambiguous.
+    """
+    by_height: Dict[Any, List[Dict[str, Any]]] = {}
+    ordered: List[Dict[str, Any]] = []
+    for o in ops:
+        if o["op"] != "custom_json" or (o["data"].get("id") not in anchor_ids):
+            continue
+        try:
+            parsed = json.loads(o["data"].get("json") or "")
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(parsed, dict):
+            continue
+        height = next((parsed[f] for f in height_fields if f in parsed), None)
+        root = next((parsed[f] for f in root_fields if f in parsed), None)
+        if height is None or root is None:
+            continue
+        rec = {"height": height, "root": root, "index": o.get("index"),
+               "timestamp": o.get("timestamp"), "block": o.get("block"),
+               "trx": o.get("trx_id"), "id": o["data"].get("id"),
+               "epoch": parsed.get("epoch", parsed.get("instance", parsed.get("net")))}
+        by_height.setdefault(height, []).append(rec)
+        ordered.append(rec)
+    conflicts = []
+    for height, recs in by_height.items():
+        roots = {r["root"] for r in recs}
+        if len(roots) > 1:
+            same_epoch = len({r["epoch"] for r in recs}) == 1
+            conflicts.append({"height": height, "distinctRoots": len(roots),
+                              "records": sorted(recs, key=lambda r: r["timestamp"] or ""),
+                              "roots": sorted(roots), "sameEpoch": same_epoch,
+                              "verdict": ("TWO STATES AT ONE HEIGHT - not explainable by an epoch change"
+                                          if same_epoch else
+                                          "ambiguous across an epoch boundary - the payload carries "
+                                          "no epoch field to disambiguate")})
+    conflicts.sort(key=lambda c: c["height"] if isinstance(c["height"], int) else 0)
+    resets = []
+    for i in range(1, len(ordered)):
+        a, b = ordered[i - 1], ordered[i]
+        if isinstance(a["height"], int) and isinstance(b["height"], int) and b["height"] < a["height"]:
+            resets.append({"afterIndex": a["index"], "at": a["timestamp"], "fromHeight": a["height"],
+                           "toIndex": b["index"], "toAt": b["timestamp"], "toHeight": b["height"],
+                           "hasEpochField": b["epoch"] is not None})
+    has_epoch = any(r["epoch"] is not None for r in ordered)
+    return {"anchorsExamined": len(ordered), "distinctHeights": len(by_height),
+            "conflictingHeights": len(conflicts), "conflicts": conflicts, "resets": resets,
+            "anyEpochFieldPresent": has_epoch,
+            "verdict": ("clean - every height carries exactly one root"
+                        if not conflicts and not resets else
+                        "%d height(s) carry more than one root; %d counter reset(s); epoch field %s"
+                        % (len(conflicts), len(resets), "present" if has_epoch else "ABSENT")),
+            "severity": ("none" if not conflicts and not resets else
+                         "critical" if any(c["sameEpoch"] for c in conflicts) else
+                         "high" if conflicts else "medium")}

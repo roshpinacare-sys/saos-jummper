@@ -1,4 +1,3 @@
-# hardening:allow-file ALL reason=fixtures reproduce the kernel WitnessStatement shape the bridge consumes
 """Tests for the witness bridge, written against the real interface in
 roshpina/kernel/transparency-log/witness.ts (v387)."""
 

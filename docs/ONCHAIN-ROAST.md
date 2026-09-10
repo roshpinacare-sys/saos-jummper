@@ -212,7 +212,7 @@ address. Anyone following the anchors back to an identity arrives at nothing.
 |---|---|
 | whether a SAOS token exists on Hive-Engine | the Hive-Engine RPC endpoints timed out from this environment, twice |
 | `lockedSaos: 0.166` against `depthBefore: 106.868` | depends on the above; the claim is unverifiable until then |
-| `srcTxid 4f83ae2a4754b2f7b07b242fac0c39a74bed1a5e` | 40 hex chars - an Ethereum-shaped id inside a HIVE custom_json, with no chain named |
+| `srcTxid 4f83ae2a4754b2f7b07b242fac0c39a74bed1a5e` | 40 hex chars inside a HIVE custom_json, with no chain named. **Corrected:** 40 hex is the GRAPHENE txid format (HIVE/STEEM/BitShares), not Ethereum - see the correction below |
 | the current signing authority | `required_auths` was 57 of 62 two days ago; not re-measured this round |
 | STEEM mainnet | node unreachable for the whole session |
 | whether the ETH and SOL anchors are still being produced | only HIVE history was read this round |
@@ -254,3 +254,42 @@ answers to the same question.
 *Read-only throughout. Two measurements 32 hours apart, both from public RPC. No
 keys read, no transactions signed, nothing broadcast, no file outside
 saos-jummper modified.*
+
+---
+
+## CORRECTION - the srcTxid format was mislabelled here
+
+An earlier version of this document called the 40-character `srcTxid` an
+**Ethereum-shaped** id. That is wrong, and it was checked afterwards.
+
+    Ethereum txid      32 bytes / 64 hex chars
+    Graphene txid      20 bytes / 40 hex chars   <- HIVE, STEEM, BitShares
+
+`ethereum-rpc.publicnode.com` rejects the 40-char value outright:
+
+    -32602 invalid argument 0: hex string has length ...
+
+and 40 hex matches two real Graphene txids read this session:
+
+    92654439d97f4cd30a70a5ced46b2bd93488b722   HIVE account_update, block 109745168
+    a80805a0ef2853dcb5f0379b7e1b62b981cbe3dd   STEEM anchor
+
+**So the pointer is correctly formatted for a Graphene chain.** It is still
+unresolvable as written, because it does not say which one: `get_transaction` on
+HIVE returns empty for it, and every STEEM node was unreachable from where this
+was written (api.steemit.com, api.steemitdev.com, steem.61bts.com,
+api.steem.house all failed). **It may well be a valid STEEM txid.**
+
+The defect is the missing chain name, not the format - and the earlier wording
+overstated it in a way that made the finding look stronger than it is. That is the
+opposite of what this document is for.
+
+`src/jumpper/attestation.py` carried the same wrong label in its
+`check_txid_pointer` detail string; corrected in commit `3786c651`, where the
+constant is now named `GRAPHENE_TXID` with `BARE_TXID` kept only as an alias.
+
+**This is the eighth confident claim in this engagement that did not survive
+being checked.** The shape is identical every time: a pattern matched, a
+conclusion drawn, and nobody went and looked. Forty hex characters felt like
+Ethereum because Ethereum is the chain people mean by default.
+

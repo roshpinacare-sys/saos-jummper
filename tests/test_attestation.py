@@ -58,7 +58,10 @@ class TestTheRealAttestationIsRefused(unittest.TestCase):
 
     def test_the_pointer_cannot_be_resolved(self):
         cs = bad()["contradictions"]
-        self.assertTrue(any("Ethereum-format" in c["detail"] for c in cs))
+        # corrected: 40 hex is the GRAPHENE format, not Ethereum. The finding is
+        # the missing chain name, which is what makes it unresolvable.
+        self.assertTrue(any("GRAPHENE" in c["detail"] for c in cs))
+        self.assertFalse(any("Ethereum-format" in c["detail"] for c in cs))
         self.assertIn("chain", [c["field"] for c in cs])
 
     def test_the_reason_names_the_contradiction_not_just_a_refusal(self):

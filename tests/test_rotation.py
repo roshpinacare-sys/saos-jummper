@@ -1,4 +1,3 @@
-# hardening:allow-file ALL reason=fixtures reproduce the real 2026-09-08 rotation and the masked keys its evidence file stored
 """Tests for the rotation contract.
 
 The centrepiece is a replay of the real incident: on 2026-09-08T21:17:42 the

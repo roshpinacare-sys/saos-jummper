@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=quotes the signing patterns and the defective relays it measures -->
 
 # The Six-Stage Signing Contract
 

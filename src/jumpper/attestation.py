@@ -60,7 +60,16 @@ CLAIM_WORDS = {
 }
 
 EVM_TXID = re.compile(r"^0x[0-9a-fA-F]{64}$")
-BARE_TXID = re.compile(r"^[0-9a-fA-F]{40}$")
+# 40 hex chars is 20 bytes, which is the GRAPHENE transaction id format used by
+# HIVE, STEEM and BitShares - verified against two real ones read this session:
+#   92654439d97f4cd30a70a5ced46b2bd93488b722   HIVE account_update
+#   a80805a0ef2853dcb5f0379b7e1b62b981cbe3dd   STEEM anchor
+# An Ethereum txid is 32 bytes / 64 hex, and ethereum-rpc.publicnode.com rejects a
+# 40-char value outright with -32602 "hex string has length ...". An earlier
+# version of this module called 40 hex "Ethereum-format", which is wrong, and the
+# mistake was repeated in docs/ONCHAIN-ROAST.md. Both are corrected.
+GRAPHENE_TXID = re.compile(r"^[0-9a-fA-F]{40}$")
+BARE_TXID = GRAPHENE_TXID
 
 
 class AttestationError(ValueError):
@@ -142,8 +151,11 @@ def check_txid_pointer(txid: Any, chain: Optional[str] = None) -> List[Contradic
     t = str(txid)
     if BARE_TXID.match(t):
         out.append(Contradiction("srcTxid", t, chain, "srcTxid", "high",
-            "40-hex is an Ethereum-format hash but no chain is named; a pointer "
-            "without a network cannot be resolved"))
+            "40-hex is the GRAPHENE transaction id format (HIVE, STEEM, BitShares), "
+            "not Ethereum - whose txids are 64 hex and which rejects a 40-char "
+            "value outright with -32602. The length is right for those chains, so "
+            "the ambiguity is between two Graphene networks, and a pointer without "
+            "a network cannot be resolved"))
     elif not EVM_TXID.match(t):
         out.append(Contradiction("srcTxid", t, chain, "srcTxid", "medium",
             "unrecognised transaction id format"))

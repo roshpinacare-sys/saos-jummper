@@ -1,4 +1,3 @@
-<!-- hardening:allow-file H-05,H-06,H-11,H-12,H-13,H-17,H-18,H-20 reason=this document quotes the defective patterns it reports -->
 
 # Roast - the gaps between what was claimed and what is true
 

@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=reconstruction of two missing specifications, quoting the kernel files that cite them -->
 
 # RECONSTRUCTION - MANIFEST.md and TRUST_INTEGRITY_ROADMAP.md
 

@@ -1,4 +1,3 @@
-# hardening:allow-file ALL reason=fixtures quote signing patterns the contract checks for
 """Tests for the six-stage signing-gate contract.
 
 Two classes of test matter here, and the second is the one that usually gets

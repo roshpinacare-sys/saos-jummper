@@ -1,4 +1,4 @@
-# hardening:allow-file ALL reason=fixtures reproduce the truncation blind spot the pipeline exists to close
+# hardening:allow-file H-12 reason=fixtures reproduce the real devnet default the network guard exists to refuse
 """Tests for the end-to-end anchor pipeline.
 
 The centrepiece is a before-and-after: audit.verify_chain over a truncated chain

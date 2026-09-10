@@ -163,6 +163,71 @@ UNKNOWN, though `witness.ts` (quorum, revision v387), `witness-registry.ts` and
 `witness-gossip-sim.ts` almost certainly occupy some of them, since they exist and
 are not accounted for by any other citation.
 
+## §2.D-10 recovered - and the revision chronology
+
+A second pass over `kernel/risk/` and `kernel/transparency-log/` (27 files,
+222,479 characters) recovered one more numbered roadmap item and the build
+sequence.
+
+### §2.D-10 - witness gossip simulation
+
+`witness-gossip-sim.ts`, verbatim:
+
+> WHY THIS EXISTS (§2.D-10)
+> Quorum (v387) and liveness (v405) operate over an authenticated channel
+> (e.g. mTLS + signed HTTP). The simulation is clearly labeled; it is not
+> presented as a real network implementation.
+
+So **§2.D had at least 12 numbered items, and two of them are now identified**:
+item 10 is the gossip simulation and item 12 is witness liveness. Note the
+epistemic discipline in that header - a simulation that says so, rather than a
+simulation presented as a network.
+
+### The revision chronology, recovered from markers in the code
+
+| revision | file | what it added |
+|---|---|---|
+| v235 | `approval-policy.ts` | DecisionTrace signed over canonical JSON; `simulation` field |
+| v286 | `approval-policy.ts` | contextual risk escalation, included in the signature when present |
+| v297 | `reputation-policy.ts` | TrackRecordCache to reputationScore wiring; cache miss leaves the score undefined for backward compatibility |
+| v298 | `approval-policy.ts` | risk-intelligence fusion, included in the signature when present |
+| v320 | `approval-policy.ts` | identity fields extracted from `agentProvenance` on the context |
+| v379 | `witness.ts` | consistency proofs - "make a split-view *detectable* by any monitor that compares" |
+| v384 | `approval-policy.ts` | hoisting fix so the legacy path still computes contextual risk |
+| v387 | `witness.ts`, `witness-registry.ts`, `witness-liveness.ts` | the pure crypto core (sign and verify a **tree-head observation**, confirm a quorum), a tenant-scoped registry, and liveness |
+| v405 | `witness-gossip-sim.ts` | the gossip simulation |
+
+Two things follow.
+
+**The build order was risk and approval first (v235 to v384), then the
+transparency-log witness subsystem (v379 to v405).** The gate was built before the
+log that would make its decisions publicly checkable.
+
+**`witness.ts` at v387 signs tree-head observations.** That is an STH cosignature,
+and it is precisely what `src/jumpper/sth.py` packs - 148 to 177 signed tree heads
+per zero-fee HIVE `custom_json`. The kernel already produces the artifact; nothing
+in the kernel publishes it. The connection is one adapter, and the adapter exists.
+
+It also sharpens the central gap. `witness.ts` at v379 states its own precondition:
+consistency proofs make a split-view detectable **"by any monitor that compares"**.
+Witnesses and gossip broaden who compares. A public anchor removes the condition
+entirely, because then everyone can compare against the same committed root.
+
+## What the second pass did NOT recover
+
+The eight previously unread `kernel/risk/` files were searched for MANIFEST
+citations. They cite gap **#1 only** - the same gap the other files cite. In
+particular `policy-simulator.ts` (19,920 characters) and `risk-intelligence.ts`
+(10,182 characters) cite the MANIFEST nowhere at all.
+
+**So gaps #3 and onward are not recoverable from `kernel/risk/`.** The remaining
+routes are the other kernel subsystems not yet searched for citations
+(`orchestrator/`, `escrow/`, `passport/`, `potential/`, `ledger/`, `marketplace/`,
+`settlement-rails/`, `adapter/`, `track-record/`, `mcp-server/`, `rbac/`,
+`common/`) and step 8 - asking the author.
+
+---
+
 ## UNKNOWN
 
 - whether §1 existed and what it covered

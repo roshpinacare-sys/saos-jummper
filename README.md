@@ -1,6 +1,5 @@
 # SAOS JUMPPER
 
-<!-- hardening:allow-file ALL reason=this document quotes the on-chain payloads and defective patterns it reports; quoting a finding is not committing one -->
 
 **Cross-chain batched proof notary.**
 

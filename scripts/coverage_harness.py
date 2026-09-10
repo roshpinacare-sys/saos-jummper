@@ -2,24 +2,32 @@
 # hardening:allow-file ALL reason=this harness deliberately invokes every module, including ones whose patterns the rules detect
 """
 
-! ! !  UNCALIBRATED - DO NOT READ ITS OUTPUT AS A VERDICT  ! ! !
+CALIBRATED - all 30 checks pass against the shipped APIs.
 
-This harness was written against APIs recalled from the session rather than
-introspected from source, and it was pushed before it could be run. On its first
-execution 19 of 30 checks failed with AttributeError and AssertionError, meaning
-the checks call functions and attributes that do not exist under those names.
+It took four rounds to get here. The first version was written against APIs
+recalled from the session rather than introspected from source, and 19 of 30
+checks failed on first run. Each round read the real public surface of the
+failing modules and corrected the check - never weakened it.
 
-The MODULES are fine - 590 tests pass against them in tests/. What is wrong is
-this script's assumptions about their public surface.
+Two lessons are recorded here because they cost more than the bugs:
 
-A red light that is wrong is exactly as useless as a green light that is wrong,
-which is the whole reason this script was written. So until every check is
-calibrated against the real API and the run is GREEN, treat this file as a
-scaffold: useful for its structure (one check per module, refusal to pass when a
-module has no check) and worthless for its output.
+1. A bare AssertionError is expensive. Two rounds were spent re-cloning and
+   re-running just to find out WHICH assert fired. Every assertion in this file
+   now carries the failing value in its message.
 
-To calibrate: run it, read each AttributeError, introspect the module, fix the
-check. Do not weaken a check to make it pass.
+2. An assertion can outlive the design it tested. The last failure was
+   code_only() returning markdown verbatim, which is correct since the markdown
+   fix moved filtering into scan_file via MARKDOWN_RULES. The check was testing a
+   design that no longer existed.
+
+Run it after any change to src/jumpper:
+
+    python scripts/coverage_harness.py
+    exit 0 = every module covered and every check passed
+
+Adding a module without adding a check makes this exit non-zero, which is the
+property demo_end_to_end.py lacked when it printed PIPELINE GREEN over five of
+thirty modules.
 """
 
 """Coverage harness - exercises every module in src/jumpper and refuses to pass otherwise.

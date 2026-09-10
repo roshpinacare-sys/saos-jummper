@@ -7,6 +7,8 @@ nothing that matters. Values are truncated where a full secret would otherwise
 be reproduced in a test file.
 """
 
+FENCE = chr(96) * 3
+
 import unittest
 
 from jumpper import hardening as HD
@@ -273,7 +275,11 @@ class TestInlineAllowances(unittest.TestCase):
         self.assertEqual(used[0]["rid"], "ALL")
 
     def test_allowances_are_always_listed_in_the_verdict(self):
-        src = "hardening:allow-file H-01 reason=documentation\n" + self.DEFECT
+        # Markdown prose is not scanned any more - only fenced code blocks are.
+        # An allowance can only be recorded when it actually suppresses something,
+        # so the fixture must put the defect where the scanner looks.
+        src = ("hardening:allow-file H-01 reason=documentation\n\n"
+               + FENCE + "\n" + self.DEFECT + "\n" + FENCE + "\n")
         r = HD.scan_tree({"docs/x.md": src})
         self.assertGreaterEqual(r["allowanceCount"], 1)
         self.assertEqual(r["allowancesUsed"][0]["rid"], "H-01")

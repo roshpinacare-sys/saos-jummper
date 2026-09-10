@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=quotes the defective on-chain operation and the devnet default it reports -->
 
 # Budget Guard - the control that stops the loop
 

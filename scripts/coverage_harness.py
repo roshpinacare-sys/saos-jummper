@@ -370,18 +370,21 @@ def _attestation():
 @check("hardening")
 def _hardening():
     m = importlib.import_module("jumpper.hardening")
-    assert len(m.RULES) == 21, len(m.RULES)
+    assert len(m.RULES) == 21, "rules: %d" % len(m.RULES)
     assert sorted(m.MARKDOWN_RULES) == ["H-08", "H-09", "H-10"], sorted(m.MARKDOWN_RULES)
-    assert m.code_only("a.md", "prose devnet.solana.com") == ""
-    assert m.code_only("a.py", "window.localStorage.setItem(k,v)") != ""
+    assert m.code_only("a.md", "prose devnet.solana.com") == "", "markdown prose must not be scanned"
+    assert m.code_only("a.py", "window.localStorage.setItem(k,v)") != "", "python code must be scanned"
     r = m.scan_tree({"a.ts": "window.localStorage.setItem(k,v)"})
-    assert not r["pass"] and "H-01" in [v["id"] for v in r["blocking"]]
-    assert m.scan_tree({"a.md": "prose devnet.solana.com"})["pass"], "markdown: secret rules only"
+    assert not r["pass"], r["verdict"]
+    assert "H-01" in [v["id"] for v in r["blocking"]], [v["id"] for v in r["blocking"]]
+    md = m.scan_tree({"a.md": "prose devnet.solana.com"})
+    assert md["pass"], md["blocking"]
     sec = m.scan_tree({"a.md": "pass: zrLStQf5RS1GxqpTwZJO6goLKUL8iNuVK1UY"})
-    assert sec["blockingCount"] == 1, sec["blockingCount"]
+    assert sec["blockingCount"] == 1, "markdown secret scan: %s" % sec["violations"]
     red = m.redact_evidence("H-08", "line 1: pass: zrLStQf5RS1GxqpTwZJO6goLKUL8iNuVK1UY")
-    assert "zrLStQf5" not in red, "the scanner must never echo the secret it found"
-    assert m.redact_evidence("H-01", "localStorage.setItem") == "localStorage.setItem"
+    assert "zrLStQf5" not in red, "the scanner must never echo the secret it found: %s" % red
+    assert m.redact_evidence("H-01", "localStorage.setItem") == "localStorage.setItem", \
+        "non-secret rules must not be redacted"
     try:
         m.waiver("H-01", "*", "x", "owner", 99999999999)
         raise AssertionError("a global waiver must be refused")
@@ -417,14 +420,16 @@ def _recovery():
     assert len(m.PROPERTIES) == 8, len(m.PROPERTIES)
     assert all(p.scope in (m.UNIVERSAL, m.BACKUP, m.VAULT) for p in m.PROPERTIES)
     assert not m.reconstruction_refuses_too_few(
-        "async function reconstructSecret(shares) { return lagrange(shares); }")
+        "async function reconstructSecret(shares) { return lagrange(shares); }"), \
+        "the real shamir.ts takes no threshold, so this must report absent"
     assert m.reconstruction_refuses_too_few(
         "function reconstructSecret(shares, t) { if (shares.length < t) throw new Error(); }")
     q = chr(39)
-    bad = ("function pc(e) { return createHash(" + q + "sha256" + q + ").update(e).digest(); } "
-           + "function ps(b) { return createHmac(" + q + "sha256" + q + ", b.metadata.checksum); }")
+    bad = ("function packageChecksum(encryptedState) { return createHash(" + q + "sha256" + q + ").update(encryptedState); } "
+           + "function packageSignature(b) { return createHmac(" + q + "sha256" + q + ", b.metadata.checksum); }")
     assert m.public_keyed_mac(bad), "a MAC keyed by metadata.checksum must be flagged"
-    assert not m.public_keyed_mac("createHmac(" + q + "sha256" + q + ", derivedKey)")
+    assert not m.public_keyed_mac("createHmac(" + q + "sha256" + q + ", derivedKey)"), \
+        "a properly keyed MAC must not be flagged"
     good = ("const k = randomBytes(32); k.fill(0); restore into a fresh vault only; "
             + "aes-256-gcm authTag seal(state); threshold shares.length < t; "
             + "inactiveDays beneficiar; beneficiaries.length; "

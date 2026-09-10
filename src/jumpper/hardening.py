@@ -166,6 +166,56 @@ class Waiver:
         return True, "ok"
 
 
+
+# ---------------------------------------------------------------------------
+# Prose is not code
+# ---------------------------------------------------------------------------
+# A scanner that cannot tell a docstring from an executable statement is not a
+# scanner. Before this existed, a module whose docstring quoted a defective flag
+# in order to explain it was flagged for containing it, and the only way to
+# silence that was a file-wide allowance - which then exempted the file from
+# every other rule too. That is how 43 of 78 files came to carry allow-file ALL,
+# and how a gate reporting blocking=0 came to be scanning almost nothing. The fix
+# is not more allowances. It is to scan code.
+
+_DQ3 = chr(34) * 3
+_SQ3 = chr(39) * 3
+_FENCE = chr(96) * 3
+_PY_BLOCK_RX = re.compile("(" + re.escape(_DQ3) + r"[\s\S]*?" + re.escape(_DQ3)
+                          + "|" + re.escape(_SQ3) + r"[\s\S]*?" + re.escape(_SQ3) + ")")
+_PY_LINE_RX = re.compile(r"(?m)^[ \t]*#.*$")
+_C_BLOCK_RX = re.compile(r"/\*[\s\S]*?\*/")
+_C_LINE_RX = re.compile(r"(?m)//[^\n]*")
+_MD_FENCE_RX = re.compile(r"(?ms)^[ \t]*(?:" + _FENCE + r"|~~~)[^\n]*\n(.*?)^[ \t]*(?:" + _FENCE + r"|~~~)")
+
+
+def code_only(path: str, content: str) -> str:
+    """Return only the parts of a file that can execute.
+
+    Python    strip docstrings and # comments
+    JS/TS     strip /* */ and // comments
+    Markdown  keep ONLY fenced code blocks - prose is description, not behaviour
+    JSON      no comment syntax; scanned as-is, because data can hold secrets
+    other     scanned as-is
+
+    Stripped regions are replaced by the same number of newlines, so evidence
+    line numbers still point at the right place in the original file.
+
+    Conservative in one direction only: it may leave a fragment of prose that
+    looks like code, producing a visible false positive a human can waive
+    narrowly. It must never remove executable text, which would produce a false
+    negative nobody sees."""
+    p = (path or "").lower()
+    if p.endswith(".md") or p.endswith(".markdown"):
+        return chr(10).join(m.group(1) for m in _MD_FENCE_RX.finditer(content))
+    if p.endswith(".py"):
+        out = _PY_BLOCK_RX.sub(lambda m: chr(10) * m.group(0).count(chr(10)), content)
+        return _PY_LINE_RX.sub("", out)
+    if p.endswith((".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs")):
+        out = _C_BLOCK_RX.sub(lambda m: chr(10) * m.group(0).count(chr(10)), content)
+        return _C_LINE_RX.sub("", out)
+    return content
+
 def _line_of(content: str, idx: int) -> int:
     return content.count("\n", 0, idx) + 1
 
@@ -401,10 +451,13 @@ def scan_file(path: str, content: str, waivers: Sequence[Waiver] = (),
               now: Optional[int] = None,
               collect_allowances: Optional[List[Dict[str, Any]]] = None) -> List[Violation]:
     allows = parse_allowances(content)
+    # Scan executable text only. Line numbers survive because stripped regions
+    # are replaced by an equal number of newlines.
+    scannable = code_only(path, content)
     out: List[Violation] = []
     for rule in RULES:
         try:
-            ev = rule.detect(path, content)
+            ev = rule.detect(path, scannable)
         except Exception:
             ev = None
         if not ev:

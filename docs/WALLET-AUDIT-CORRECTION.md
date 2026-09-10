@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=correction document quoting the code it supersedes -->
 
 # CORRECTION - the wallet audit was wrong about the current repository
 

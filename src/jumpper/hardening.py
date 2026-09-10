@@ -185,7 +185,15 @@ _PY_BLOCK_RX = re.compile("(" + re.escape(_DQ3) + r"[\s\S]*?" + re.escape(_DQ3)
                           + "|" + re.escape(_SQ3) + r"[\s\S]*?" + re.escape(_SQ3) + ")")
 _PY_LINE_RX = re.compile(r"(?m)^[ \t]*#.*$")
 _C_BLOCK_RX = re.compile(r"/\*[\s\S]*?\*/")
-_C_LINE_RX = re.compile(r"(?m)//[^\n]*")
+# A naive "//" strip destroys every URL in the file: in
+#   const R = ["https://api.devnet.solana.com"]
+# the "//" after "https:" looks like a comment and the rest of the line is
+# discarded, silently removing the evidence a URL rule needs. That is a false
+# NEGATIVE, which is worse than a false positive because nobody sees it. The
+# lookbehind excludes a preceding colon. This is still not a lexer - a "//"
+# inside a string with no colon before it would be misread - so the limitation
+# is stated here rather than hidden, and the test suite pins the URL case.
+_C_LINE_RX = re.compile(r"(?m)(?<!:)//[^\n]*")
 _MD_FENCE_RX = re.compile(r"(?ms)^[ \t]*(?:" + _FENCE + r"|~~~)[^\n]*\n(.*?)^[ \t]*(?:" + _FENCE + r"|~~~)")
 
 

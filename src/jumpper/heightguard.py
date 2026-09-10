@@ -235,7 +235,10 @@ def remediation_report(stream: Sequence[Commitment], log_id: str = "saos-dex.anc
                            "the operator must publish that, or every verifier will "
                            "pick a different one"),
         })
-    entries.sort(key=lambda e: (-(e["windowSeconds"] if e["windowSeconds"] is not None else 10**9),
+    # Tightest window first. A collision thirty seconds apart is a contradiction;
+    # one two days apart could plausibly be a legitimate re-seal of a rebuilt
+    # state. Sorting longest-first buried the critical entries under the mild ones.
+    entries.sort(key=lambda e: (e["windowSeconds"] if e["windowSeconds"] is not None else 10**9,
                                 e["height"]))
     return {
         "logId": log_id, "chain": chain,

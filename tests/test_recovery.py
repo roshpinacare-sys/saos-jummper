@@ -1,4 +1,3 @@
-# hardening:allow-file ALL reason=fixtures reproduce the real Shamir reconstruction defect the contract detects
 """Tests for the recovery contract.
 
 Calibrated against real source read out of Saosmartwallet/packages/core:

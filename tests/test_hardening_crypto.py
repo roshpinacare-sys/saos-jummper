@@ -1,4 +1,4 @@
-# hardening:allow-file ALL reason=fixtures quote both the defective patterns and the correct crypto the rules are calibrated against
+# hardening:allow-file H-18,H-19,H-20,H-21 reason=fixtures reproduce every defective pattern the crypto rules detect, plus the correct code they must not flag
 """Tests for the crypto-hygiene rules H-18 to H-21.
 
 Calibrated in both directions. Each rule must fire on the defective pattern it was

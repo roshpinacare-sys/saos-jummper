@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=incident record; contains public keys and file locations only, no secret values -->
 
 # Key Incident - headcorner owner key changed 2026-09-08T21:17:42
 

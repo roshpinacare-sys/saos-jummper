@@ -105,8 +105,21 @@ def _claim():
     m = importlib.import_module("jumpper.claim")
     c = m.make_claim({"a": 1}, TS, public=True, source="harness")
     assert len(c.leaf_hash) == 64
-    assert c.digest_of({"a": 1}) != c.leaf_hash, "domain separation must separate digest from leaf"
-    return "domain-separated leaf hash"
+    assert c.claim_id == c.leaf_hash[:16]
+    assert m.leaf_hash({"a": 1}, TS) == c.leaf_hash, "deterministic"
+    assert m.leaf_hash({"a": 2}, TS) != c.leaf_hash, "a different payload must differ"
+    assert m.leaf_hash({"a": 1}, "2026-09-08T02:30:54.000Z") != c.leaf_hash, "a different time must differ"
+    assert c.canonical_payload and c.payload_size > 0, "a public claim keeps its canonical payload"
+    priv = m.make_claim({"a": 1}, TS, public=False)
+    assert priv.canonical_payload == "", "a private claim must not carry its payload"
+    assert priv.disclosure()["leafHash"] == priv.leaf_hash
+    try:
+        m.leaf_hash({"a": 1}, "not-a-timestamp")
+        raise AssertionError("a non-ISO timestamp must be refused")
+    except m.ClaimError:
+        pass
+    return "domain-separated leaf hash; private claims withhold the payload; bad timestamp refused"
+
 
 
 @check("batch")
@@ -134,21 +147,27 @@ def _anchor():
 @check("verify")
 def _verify():
     m = importlib.import_module("jumpper.verify")
-    r = m.verify_receipt({"payload_digest": "aa" * 32},
-                         {"calldata": "0x" + PAYLOAD.encode().hex()})
-    assert "payload_matches" in r and "calldata_present" in r
-    return "receipt verified against calldata"
+    mk = importlib.import_module("jumpper.merkle")
+    lv = [mk.leaf_hash(str(i).encode()) for i in range(5)]
+    tr = mk.build(lv)
+    assert m.verify_inclusion(lv[2], tr[1][2], tr[-1][0]), "inclusion must verify"
+    assert not m.verify_inclusion(lv[2], tr[1][2], "0" * 64), "a wrong root must fail"
+    return "inclusion proof verifies against the real root and fails against a wrong one"
+
 
 
 @check("witness")
 def _witness():
     m = importlib.import_module("jumpper.witness")
-    w = m.WitnessSet(quorum=2)
-    w.add("w1", "aa" * 32)
-    w.add("w2", "aa" * 32)
-    s = w.status("aa" * 32)
-    assert s["reached"] and s["distinct"] == 2
-    return "quorum 2 reached by 2 distinct witnesses"
+    cap = {"hive": {"reachable": True, "headRef": "109783856", "ms": 40},
+           "steem": {"reachable": False, "error": "connection-failed", "ms": 0},
+           "solana": {"reachable": True, "headRef": "445465338", "ms": 55}}
+    assert m.summary(cap) == {"reachable": 2, "unreachable": 1, "total": 3}, m.summary(cap)
+    cw = m.compact_witness(cap)
+    assert cw["hive"] == "109783856" and cw["solana"] == "445465338"
+    assert cw["steem"] is None, "an unreachable chain must be null, never omitted or invented"
+    return "2 of 3 reachable; the unreachable one is null rather than omitted"
+
 
 
 @check("protocol")
@@ -451,8 +470,8 @@ def _witnessbridge():
     st = {"version": m.WITNESS_STATEMENT_VERSION, "logId": "log-a", "root": R64,
           "treeSize": 12108, "observedAt": TS, "witnessId": "w1",
           "algorithm": "ed25519", "signature": "c2ln"}
-    s = m.parse_statement(st)
-    assert sorted(json.loads(m.signing_payload(s))) == sorted(
+    stt = m.parse_statement(st)
+    assert sorted(json.loads(m.signing_payload(stt))) == sorted(
         ["version", "logId", "root", "treeSize", "observedAt", "witnessId"])
     fork = [m.parse_statement(dict(st, witnessId="w%d" % i)) for i in range(2)]
     fork.append(m.parse_statement(dict(st, witnessId="w3", root=R64B)))
@@ -462,13 +481,20 @@ def _witnessbridge():
         raise AssertionError("a fork must not be majority-voted")
     except m.SplitViewError:
         pass
+    q = m.quorum(fork[:2], "log-a", 12108, 2)
+    assert q["reached"] and q["signaturesVerified"] is False
+    com = m.commitment_from_quorum("log-a", 12108, q)
+    rt = m.decode_commitment(com.encode())
+    assert rt.root == R64 and rt.witness_count == 2
     cs = [m.QuorumCommitment("log-%d" % i, 12108 + i, R64, 3,
                              m.witness_set_digest(["w1", "w2", "w3"])) for i in range(120)]
     assert m.max_commitments_that_fit(cs) == 79
     assert len(m.split_into_operations(cs)) == 2
-    pl = m.plan("headcorner", cs[:20])
-    assert pl["fee"] == 0 and pl["authority"] == "posting" and pl["signaturesVerified"] is False
-    return "split-view refused not majority-voted; 79 commitments per free op"
+    pay = m.pack_commitments(cs[:79])
+    assert len(pay.encode()) <= m.CUSTOM_JSON_BUDGET
+    assert len(m.unpack_commitments(pay)) == 79
+    return "split-view refused not majority-voted; 79 commitments fit one free custom_json"
+
 
 
 @check("netattest")
@@ -500,11 +526,14 @@ def _forkwatch():
             rec(49834, "2026-09-09T18:27:51", 109770512, "84ae0a0a08ef2f44becc" + "0" * 44)]
     anchors = m.parse_history(hist)
     assert len(anchors) == 2, len(anchors)
+    assert all(a.height == 1764 for a in anchors)
     forks = m.detect_forks(anchors)
-    assert forks and forks[0].height == 1764 and len(forks[0].roots) == 2
-    a = m.audit(anchors)
-    assert a["forkedHeights"] == 1
-    return "height-1764 fork detected independently: 2 roots, blocks 109770502 and 109770512"
+    assert len(forks) == 1
+    assert forks[0].height == 1764 and len(forks[0].roots) == 2
+    assert forks[0].span_seconds == 30, forks[0].span_seconds
+    assert m.audit(anchors)
+    return "height-1764 fork: 2 roots, 30 s apart, blocks 109770502 and 109770512"
+
 
 
 def main():

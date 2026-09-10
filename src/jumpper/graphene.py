@@ -1,4 +1,4 @@
-# hardening:allow-file ALL reason=module docstring quotes the on-chain op shape it is designed to replace
+# hardening:allow-file H-11 reason=builds BOTH authority variants; the active branch must be able to emit required_auths
 """Graphene free-anchor layer: STEEM / HIVE / BLURT custom_json.
 
 This is the PRIMARY anchor path. It costs ZERO fee.

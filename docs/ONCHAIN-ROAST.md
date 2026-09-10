@@ -1,4 +1,3 @@
-<!-- hardening:allow-file H-11,H-12,H-13,H-05 reason=quotes the on-chain payloads and defective flags it reports -->
 
 # On-Chain Roast - what HIVE mainnet says about SAOS, measured twice
 

@@ -50,6 +50,9 @@ from .graphene import GrapheneError, b64u, unb64u
 
 WRAPPER_BYTES = 101          # measured: the custom_json envelope, empty json
 TIER_E_ENTRY_BYTES = 52      # measured: "v,height,<43-char b64u root>" + separator
+TIER_E_ENTRY_BYTES_WITH_EPOCH = 60   # "2,<epoch>,height,<rootB64u>" + separator
+PACK_V1 = 1                  # legacy, no epoch - height unique only within a process
+PACK_V2 = 2                  # epoch-namespaced - (epoch, height) unique across restarts
 
 
 class PackingError(ValueError):
@@ -58,36 +61,97 @@ class PackingError(ValueError):
 
 @dataclass(frozen=True)
 class RootEntry:
+    """One anchored root.
+
+    `epoch` namespaces the height. Without it a height is unique only within one
+    process lifetime - and eight heights on HIVE mainnet were found carrying two or
+    three contradictory roots each, because the pulse chain restarted and its counter
+    began again near 12, re-publishing heights already committed under different
+    roots. Height 1764 carried two roots thirty seconds apart; height 552 carried
+    three in seven minutes. All signed by the same account, all permanent.
+
+    With an epoch, (epoch, height) is unique across restarts and a restart becomes
+    visible as a new epoch instead of appearing as a contradiction. The cost is
+    about 8 bytes in a payload that uses 248.9 of an 8,192-byte budget.
+
+    Wire format, dispatching on field count so v1 payloads still decode:
+
+        v1  "<1>,<height>,<rootB64u>"            legacy, no epoch
+        v2  "<2>,<epoch>,<height>,<rootB64u>"    epoch-namespaced
+    """
+
     version: int
     height: int
     root: str            # 64-char lowercase hex
+    epoch: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.version not in (PACK_V1, PACK_V2):
+            raise PackingError("unsupported pack version %r" % self.version)
+        if (self.version == PACK_V2) != (self.epoch is not None):
+            raise PackingError("version %d and epoch=%r disagree: v2 requires an epoch, "
+                               "v1 forbids one" % (self.version, self.epoch))
+        if self.epoch is not None:
+            if not self.epoch:
+                raise PackingError("epoch must be non-empty when present")
+            if "," in self.epoch or ";" in self.epoch:
+                raise PackingError("epoch must not contain the field or entry separator")
 
     def encode(self) -> str:
-        return "%d,%d,%s" % (self.version, self.height, b64u(self.root))
+        if self.version == PACK_V2:
+            return "%d,%s,%d,%s" % (PACK_V2, self.epoch, self.height, b64u(self.root))
+        return "%d,%d,%s" % (PACK_V1, self.height, b64u(self.root))
 
     @property
     def encoded_bytes(self) -> int:
         return len(self.encode().encode())
 
 
+def entry(root: str, height: int, epoch: Optional[str] = None) -> RootEntry:
+    """Build an entry at the version implied by whether an epoch was supplied."""
+    return RootEntry(version=(PACK_V2 if epoch is not None else PACK_V1),
+                     height=height, root=root, epoch=epoch)
+
+
 def decode_entry(s: str) -> RootEntry:
+    """Decode one entry, dispatching on field count so v1 payloads still read."""
     parts = s.split(",")
-    if len(parts) != 3:
-        raise PackingError("entry must be version,height,rootB64u")
+    if len(parts) == 3:
+        ver, epoch, height_s, root_b64 = PACK_V1, None, parts[1], parts[2]
+    elif len(parts) == 4:
+        ver, epoch, height_s, root_b64 = PACK_V2, parts[1], parts[2], parts[3]
+    else:
+        raise PackingError("entry must be v,height,rootB64u or v,epoch,height,rootB64u")
     try:
-        v, h = int(parts[0]), int(parts[1])
+        declared = int(parts[0])
     except ValueError as exc:
-        raise PackingError("version and height must be integers") from exc
+        raise PackingError("version must be an integer") from exc
+    if declared != ver:
+        raise PackingError("declared version %d does not match the %d fields present"
+                           % (declared, len(parts)))
     try:
-        return RootEntry(version=v, height=h, root=unb64u(parts[2]))
+        height = int(height_s)
+    except ValueError as exc:
+        raise PackingError("height must be an integer") from exc
+    try:
+        root = unb64u(root_b64)
     except GrapheneError as exc:
         raise PackingError(str(exc)) from exc
+    return RootEntry(version=ver, height=height, root=root, epoch=epoch)
 
 
 def pack_payload(entries: Sequence[RootEntry], sep: str = ";") -> str:
     """Many roots, one json field. Exact round-trip with unpack_payload."""
     if not entries:
         raise PackingError("cannot pack zero entries")
+    versions = {e.version for e in entries}
+    if len(versions) > 1:
+        raise PackingError("one payload carries one pack version; got %r" % sorted(versions))
+    epochs = {e.epoch for e in entries}
+    if len(epochs) > 1:
+        raise PackingError("one payload carries one epoch; got %r - split by epoch so a "
+                           "reader cannot mistake two process lifetimes for one"
+                           % sorted(epochs, key=str))
     return sep.join(e.encode() for e in entries)
 
 

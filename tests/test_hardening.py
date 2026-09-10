@@ -279,7 +279,9 @@ class TestInlineAllowances(unittest.TestCase):
         # so the fixture must put the defect where the scanner looks.
         src = ("hardening:allow-file H-01 reason=documentation\n\n"
                + FENCE + "\n" + self.DEFECT + "\n" + FENCE + "\n")
-        r = HD.scan_tree({"docs/x.md": src})
+        # Markdown carries no code rules any more, so an allowance in a .md can
+        # never be exercised. The mechanism is what is under test, not the type.
+        r = HD.scan_tree({"src/vault/secure-storage.ts": src})
         self.assertGreaterEqual(r["allowanceCount"], 1)
         self.assertEqual(r["allowancesUsed"][0]["rid"], "H-01")
         self.assertIn("documentation", r["allowancesUsed"][0]["reason"])
@@ -292,6 +294,40 @@ class TestInlineAllowances(unittest.TestCase):
         for bad in ("hardening:allow\n", "hardening:allow-file\n",
                     "hardening:allow-file H-01\n", "# hardening:allow H-99\n"):
             HD.scan_file("x.ts", bad + self.DEFECT)
+
+
+class TestMarkdownGetsSecretRulesOnly(unittest.TestCase):
+    """A document cannot execute code, but it can leak a secret.
+
+    Markdown is scanned for H-08, H-09 and H-10 over the whole file and for
+    nothing else. Before this, code patterns quoted in prose were flagged, which
+    is why fourteen docs carried a blanket allow-file ALL."""
+
+    DEFECT = "window.localStorage.setItem(k, v);"
+
+    def test_only_the_three_secret_rules_apply(self):
+        self.assertEqual(sorted(HD.MARKDOWN_RULES), ["H-08", "H-09", "H-10"])
+        self.assertLess(len(HD.MARKDOWN_RULES), len(HD.RULES))
+
+    def test_code_patterns_in_prose_are_not_flagged(self):
+        prose = ("the relay defaults to devnet.solana.com and sets "
+                 "required_auths: [headcorner] and searchTransactionHistory: false")
+        self.assertEqual(HD.scan_file("docs/x.md", prose), [])
+
+    def test_code_patterns_in_a_fence_are_not_flagged_either(self):
+        fenced = chr(96) * 3 + chr(10) + self.DEFECT + chr(10) + chr(96) * 3
+        self.assertEqual(HD.scan_file("docs/x.md", fenced), [])
+
+    def test_a_secret_in_a_document_is_still_caught(self):
+        self.assertEqual([v.rid for v in HD.scan_file("docs/x.md", "the config says pass: zrLStQf5RS1GxqpTwZJO6goLKUL8iNuV")], ["H-08"])
+        self.assertEqual([v.rid for v in HD.scan_file("docs/x.md", "k = 5J" + "a" * 49)], ["H-09"])
+        self.assertEqual([v.rid for v in HD.scan_file("docs/x.md", "t ghp_" + "A" * 36)], ["H-10"])
+
+    def test_a_prose_mention_of_the_word_pass_is_not_a_leak(self):
+        self.assertEqual(HD.scan_file("docs/x.md", "the vault pass phrase is discussed here"), [])
+
+    def test_code_files_still_get_every_rule(self):
+        self.assertIn("H-01", [x.rid for x in HD.scan_file("src/a.ts", self.DEFECT)])
 
 
 if __name__ == "__main__":

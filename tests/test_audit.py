@@ -1,4 +1,3 @@
-# hardening:allow-file ALL reason=fixtures reproduce the two real audit hash functions being compared
 """Tests for audit hash-chain coverage.
 
 The centrepiece is a negative result that a test produced and the code then had to

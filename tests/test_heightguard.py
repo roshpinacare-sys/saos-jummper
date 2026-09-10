@@ -127,6 +127,77 @@ class TestAuditSemantics(unittest.TestCase):
         r = HG.audit([c("e1", 100, R1, "t1"), c("e1", 100, R2, "t2"), c("e1", 5, R3, "t3")])
         self.assertEqual(r["repeats"], 1); self.assertEqual(r["resets"], 1)
 
+class TestRemediationReport(unittest.TestCase):
+    """The report must not invent a canonical root the chain cannot support."""
+
+
+    def test_forks_are_ambiguous_with_no_canonical_root(self):
+        r = HG.remediation_report(H1764 + H552)
+        self.assertEqual(r["forkedHeights"], 2)
+        for e in r["entries"]:
+            self.assertEqual(e["status"], "AMBIGUOUS"); self.assertIsNone(e["canonicalRoot"])
+
+
+    def test_tightest_window_comes_first(self):
+        r = HG.remediation_report(H1764 + H552)
+        wins = [e["windowSeconds"] for e in r["entries"]]
+        self.assertEqual(wins, sorted(wins))
+        self.assertEqual(r["entries"][0]["height"], 1764)
+        self.assertEqual(r["entries"][0]["windowSeconds"], 30)
+
+
+    def test_the_real_windows_are_reproduced(self):
+        e = [x for x in HG.remediation_report(H552)["entries"] if x["height"] == 552][0]
+        self.assertEqual(e["windowSeconds"], 423); self.assertEqual(e["distinctRoots"], 3)
+
+
+    def test_records_carry_block_and_txid(self):
+        e = HG.remediation_report(H1764)["entries"][0]
+        self.assertEqual([x["block"] for x in e["records"]], [109770502, 109770512])
+        self.assertEqual([x["txId"] for x in e["records"]], ["49833", "49834"])
+
+
+    def test_epoch_absence_and_counters(self):
+        r = HG.remediation_report(H1764)
+        self.assertFalse(r["epochPresent"]); self.assertEqual(r["counterResets"], 0)
+        self.assertEqual(r["counterRepeats"], 1)
+
+
+    def test_a_clean_stream_reports_zero_forks(self):
+        r = HG.remediation_report(CLEAN)
+        self.assertEqual(r["forkedHeights"], 0); self.assertTrue(r["epochPresent"])
+
+
+    def test_the_remedy_names_the_epoch_and_the_check(self):
+        m = " ".join(HG.remediation_report(H1764)["remedy"])
+        self.assertIn("epoch", m); self.assertIn("HeightLedger.check()", m)
+        self.assertIn("do not delete", m.lower())
+
+
+    def test_the_resolution_says_the_chain_cannot_decide(self):
+        self.assertIn("cannot decide", HG.remediation_report(H1764)["entries"][0]["resolution"])
+
+
+    def test_an_empty_stream_is_refused(self):
+        with self.assertRaises(HG.HeightGuardError): HG.remediation_report([])
+
+
+    def test_resets_and_repeats_are_counted_separately(self):
+        s = [c("e1", 1416, R1, "2026-09-07T14:42:57"), c("e1", 552, R2, "2026-09-07T21:57:33"),
+             c("e1", 552, R3, "2026-09-07T22:04:36")]
+        r = HG.remediation_report(s)
+        self.assertEqual(r["counterResets"], 1); self.assertEqual(r["counterRepeats"], 1)
+        self.assertEqual(r["forkedHeights"], 1)
+
+
+    def test_span_seconds_handles_unusable_timestamps(self):
+        self.assertIsNone(HG._span_seconds(None, "2026-09-09T18:27:51"))
+        self.assertIsNone(HG._span_seconds("not-a-date", "2026-09-09T18:27:51"))
+        self.assertEqual(HG._span_seconds("2026-09-09T18:27:21", "2026-09-09T18:27:51"), 30)
+
+
+
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

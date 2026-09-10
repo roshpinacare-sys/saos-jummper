@@ -1,4 +1,4 @@
-# hardening:allow-file ALL reason=fixtures reproduce the real convert loop the guard exists to stop
+# hardening:allow-file H-11,H-12 reason=fixtures reproduce the real convert loop and the real on-chain op shape
 """Tests for the budget and repeat guards.
 
 The centrepiece is a replay of the REAL defect: eleven identical hive.convert

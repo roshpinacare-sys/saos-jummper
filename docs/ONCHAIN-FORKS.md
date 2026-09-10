@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=quotes the real forked anchor payloads and the xlock memos it reports -->
 
 # On-Chain Forks - the anchor stream contradicts itself, publicly
 

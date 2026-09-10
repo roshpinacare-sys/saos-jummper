@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=quotes both real hash functions and the fields each leaves unprotected -->
 
 # Audit Chain Audit - what each hash actually commits to
 

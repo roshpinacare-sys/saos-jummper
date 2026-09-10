@@ -189,3 +189,83 @@ def audit(stream: Sequence[Commitment]) -> Dict[str, Any]:
             "epochAdvice": (None if not no_epoch else
                              "no payload carries an epoch field; a process restart will "
                              "re-publish low heights and collide with committed roots")}
+
+
+def remediation_report(stream: Sequence[Commitment], log_id: str = "saos-dex.anchor.v1",
+                       chain: str = "hive") -> Dict[str, Any]:
+    """A machine-readable correction record for heights that already forked.
+
+    The eight forked heights on HIVE mainnet are permanent. They cannot be
+    retracted, and no amount of new code removes them. What CAN be done is publish
+    a record so precise that a verifier who encounters one knows it is ambiguous
+    rather than silently picking whichever root they found first.
+
+    DELIBERATELY NOT DONE: declaring a canonical root. The chain cannot support
+    that judgement. Two signed commitments at the same height are both real; which
+    one the state machine actually produced is a fact about the operator's process,
+    not about the ledger. Picking the earliest would be a convention dressed as a
+    finding, and a verifier who trusted it would be trusting us rather than the
+    chain. So every forked height is reported as AMBIGUOUS with all of its roots,
+    and the operator must publish which one is authoritative if any is.
+    """
+    if not stream:
+        raise HeightGuardError("empty stream; nothing to remediate")
+    led = HeightLedger()
+    for c in stream:
+        led.add(c)
+    fk = led.forks()
+    ordered = sorted(stream, key=lambda c: c.timestamp or "")
+    rs = led.resets(ordered)
+    heights = [c.height for c in ordered]
+    entries = []
+    for f in fk:
+        recs = f["records"]
+        entries.append({
+            "height": f["height"],
+            "epoch": f["epoch"] or None,
+            "status": "AMBIGUOUS",
+            "canonicalRoot": None,
+            "distinctRoots": f["distinctRoots"],
+            "anchorCount": f["anchors"],
+            "firstCommittedAt": f["firstAt"],
+            "lastCommittedAt": f["lastAt"],
+            "windowSeconds": _span_seconds(f["firstAt"], f["lastAt"]),
+            "records": recs,
+            "resolution": ("the chain cannot decide which root is authoritative; "
+                           "the operator must publish that, or every verifier will "
+                           "pick a different one"),
+        })
+    entries.sort(key=lambda e: (-(e["windowSeconds"] if e["windowSeconds"] is not None else 10**9),
+                                e["height"]))
+    return {
+        "logId": log_id, "chain": chain,
+        "generatedFrom": "%d anchors over %d distinct heights" % (len(stream), len({c.key for c in stream})),
+        "heightRange": [min(heights), max(heights)] if heights else None,
+        "forkedHeights": len(fk),
+        "epochPresent": any((c.epoch or "") != "" for c in stream),
+        "counterResets": len([x for x in rs if not x.get("repeat")]),
+        "counterRepeats": len([x for x in rs if x.get("repeat")]),
+        "entries": entries,
+        "remedy": [
+            "add an epoch field to the payload so (epoch, height) is unique across "
+            "process incarnations - one field, and it prevents every future fork",
+            "run HeightLedger.check() before broadcasting; it refuses a root that "
+            "contradicts one already committed at the same key",
+            "publish which root is authoritative for each forked height, or state "
+            "plainly that none is",
+            "do not delete or rewrite these records - they are permanent and a "
+            "correction that hides the original is worse than the original",
+        ],
+    }
+
+
+def _span_seconds(a: Optional[str], b: Optional[str]) -> Optional[int]:
+    """Seconds between two ISO-8601 timestamps, or None if either is unusable."""
+    if not a or not b:
+        return None
+    try:
+        ta = time.strptime(a, "%Y-%m-%dT%H:%M:%S")
+        tb = time.strptime(b, "%Y-%m-%dT%H:%M:%S")
+    except ValueError:
+        return None
+    return int(time.mktime(tb) - time.mktime(ta))

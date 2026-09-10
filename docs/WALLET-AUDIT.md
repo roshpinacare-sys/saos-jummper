@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=superseded audit kept as a record, quoting the defects it found -->
 
 > # ⚠️ SUPERSEDED - READ `docs/WALLET-AUDIT-CORRECTION.md` FIRST
 >

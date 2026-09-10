@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=consultation document quoting the defects and payloads it asks about -->
 
 # Consultation Request - one decision, and four questions I cannot answer alone
 

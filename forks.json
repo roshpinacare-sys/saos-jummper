@@ -1,0 +1,235 @@
+{
+ "logId": "saos-dex.anchor.v1",
+ "chain": "hive",
+ "generatedFrom": "162 anchors over 153 distinct heights",
+ "heightRange": [
+  12,
+  23028
+ ],
+ "forkedHeights": 8,
+ "epochPresent": false,
+ "counterResets": 6,
+ "counterRepeats": 4,
+ "entries": [
+  {
+   "height": 1416,
+   "epoch": null,
+   "status": "AMBIGUOUS",
+   "canonicalRoot": null,
+   "distinctRoots": 2,
+   "anchorCount": 2,
+   "firstCommittedAt": "2026-09-07T14:42:57",
+   "lastCommittedAt": "2026-09-09T18:03:48",
+   "windowSeconds": 184851,
+   "records": [
+    {
+     "root": "a54a51c7524dabc41d09d859f5d642aa836947482ef30467aef6e5a3f66416d0",
+     "timestamp": "2026-09-07T14:42:57",
+     "block": 109708562,
+     "txId": "49706"
+    },
+    {
+     "root": "d93e5a50d5e731ca81555b6bfc5dfd7fbc07e9b6e21357ca330e27dd9d3ea05d",
+     "timestamp": "2026-09-09T18:03:48",
+     "block": 109770031,
+     "txId": "49804"
+    }
+   ],
+   "resolution": "the chain cannot decide which root is authoritative; the operator must publish that, or every verifier will pick a different one"
+  },
+  {
+   "height": 12,
+   "epoch": null,
+   "status": "AMBIGUOUS",
+   "canonicalRoot": null,
+   "distinctRoots": 2,
+   "anchorCount": 2,
+   "firstCommittedAt": "2026-09-07T22:53:03",
+   "lastCommittedAt": "2026-09-09T22:10:06",
+   "windowSeconds": 170223,
+   "records": [
+    {
+     "root": "cd6cb690832625e2e1227d65b68440b9ed6997065349e00ee176097728c2f9e3",
+     "timestamp": "2026-09-07T22:53:03",
+     "block": 109718340,
+     "txId": "49718"
+    },
+    {
+     "root": "3de8c6e4d7f4006e597be782f5b370df7ffae02cfa6d3bec30a0bb4a29c36a72",
+     "timestamp": "2026-09-09T22:10:06",
+     "block": 109774942,
+     "txId": "49862"
+    }
+   ],
+   "resolution": "the chain cannot decide which root is authoritative; the operator must publish that, or every verifier will pick a different one"
+  },
+  {
+   "height": 1224,
+   "epoch": null,
+   "status": "AMBIGUOUS",
+   "canonicalRoot": null,
+   "distinctRoots": 2,
+   "anchorCount": 2,
+   "firstCommittedAt": "2026-09-07T23:58:54",
+   "lastCommittedAt": "2026-09-09T17:54:12",
+   "windowSeconds": 150918,
+   "records": [
+    {
+     "root": "46109a16593d020cef4709a0f84bc57c135d3ceff0b6b81165408ae91fb7b9e5",
+     "timestamp": "2026-09-07T23:58:54",
+     "block": 109719654,
+     "txId": "49720"
+    },
+    {
+     "root": "fe9f6581188cf9b16d2423ddd752842588a5be0b21400423a9fe301b05cf18d6",
+     "timestamp": "2026-09-09T17:54:12",
+     "block": 109769840,
+     "txId": "49789"
+    }
+   ],
+   "resolution": "the chain cannot decide which root is authoritative; the operator must publish that, or every verifier will pick a different one"
+  },
+  {
+   "height": 1392,
+   "epoch": null,
+   "status": "AMBIGUOUS",
+   "canonicalRoot": null,
+   "distinctRoots": 2,
+   "anchorCount": 2,
+   "firstCommittedAt": "2026-09-08T03:35:09",
+   "lastCommittedAt": "2026-09-09T18:02:36",
+   "windowSeconds": 138447,
+   "records": [
+    {
+     "root": "891d7349a13d3e5a3e4f5c0d49445bd484be00831c5ad31131fb3bd138db1857",
+     "timestamp": "2026-09-08T03:35:09",
+     "block": 109723970,
+     "txId": "49724"
+    },
+    {
+     "root": "c72a0a4f9d61ca5625cf724dd219be0c6e3bf5a524a4983c3afe1effdc664963",
+     "timestamp": "2026-09-09T18:02:36",
+     "block": 109770007,
+     "txId": "49802"
+    }
+   ],
+   "resolution": "the chain cannot decide which root is authoritative; the operator must publish that, or every verifier will pick a different one"
+  },
+  {
+   "height": 1476,
+   "epoch": null,
+   "status": "AMBIGUOUS",
+   "canonicalRoot": null,
+   "distinctRoots": 2,
+   "anchorCount": 2,
+   "firstCommittedAt": "2026-09-09T18:06:48",
+   "lastCommittedAt": "2026-09-09T23:24:36",
+   "windowSeconds": 19068,
+   "records": [
+    {
+     "root": "f61a046edf15a37c4e5f966c5e5cfc2abc2f5a5988542c51d9595fa9aa3c9c01",
+     "timestamp": "2026-09-09T18:06:48",
+     "block": 109770091,
+     "txId": "49809"
+    },
+    {
+     "root": "e26a24907e9f95f4ca7cf5a3cf4877ce60d41d4c31d405c7d0fd88a4eb34f176",
+     "timestamp": "2026-09-09T23:24:36",
+     "block": 109776429,
+     "txId": "49865"
+    }
+   ],
+   "resolution": "the chain cannot decide which root is authoritative; the operator must publish that, or every verifier will pick a different one"
+  },
+  {
+   "height": 552,
+   "epoch": null,
+   "status": "AMBIGUOUS",
+   "canonicalRoot": null,
+   "distinctRoots": 3,
+   "anchorCount": 3,
+   "firstCommittedAt": "2026-09-07T21:57:33",
+   "lastCommittedAt": "2026-09-07T22:04:36",
+   "windowSeconds": 423,
+   "records": [
+    {
+     "root": "20f4a62f4d394adc8d354bf56b3d6afe44544dc82bef3042cd8c06549803c781",
+     "timestamp": "2026-09-07T21:57:33",
+     "block": 109717232,
+     "txId": "49715"
+    },
+    {
+     "root": "b426703955dc08503f2dad7f2afbd65f5035603589af1690aa1d00b4fa9ade80",
+     "timestamp": "2026-09-07T22:02:12",
+     "block": 109717324,
+     "txId": "49716"
+    },
+    {
+     "root": "647ac665dceb6b32910da2f3e1ff8941cbbfec645285bfd6d237012ce65a17b9",
+     "timestamp": "2026-09-07T22:04:36",
+     "block": 109717372,
+     "txId": "49717"
+    }
+   ],
+   "resolution": "the chain cannot decide which root is authoritative; the operator must publish that, or every verifier will pick a different one"
+  },
+  {
+   "height": 1668,
+   "epoch": null,
+   "status": "AMBIGUOUS",
+   "canonicalRoot": null,
+   "distinctRoots": 2,
+   "anchorCount": 2,
+   "firstCommittedAt": "2026-09-09T18:19:18",
+   "lastCommittedAt": "2026-09-09T18:22:36",
+   "windowSeconds": 198,
+   "records": [
+    {
+     "root": "74b29867195898f6691ce331cbdbcd3fed35ed8a74e1cc63fb6f4fa2ce6765b5",
+     "timestamp": "2026-09-09T18:19:18",
+     "block": 109770341,
+     "txId": "49824"
+    },
+    {
+     "root": "e375e0f5d7fe98c69ea720d0f96e9fb2146e6c352b87e8b0f9a4f1ceb53d9631",
+     "timestamp": "2026-09-09T18:22:36",
+     "block": 109770407,
+     "txId": "49825"
+    }
+   ],
+   "resolution": "the chain cannot decide which root is authoritative; the operator must publish that, or every verifier will pick a different one"
+  },
+  {
+   "height": 1764,
+   "epoch": null,
+   "status": "AMBIGUOUS",
+   "canonicalRoot": null,
+   "distinctRoots": 2,
+   "anchorCount": 2,
+   "firstCommittedAt": "2026-09-09T18:27:21",
+   "lastCommittedAt": "2026-09-09T18:27:51",
+   "windowSeconds": 30,
+   "records": [
+    {
+     "root": "d7220b5e9ecc953e7e8ddf0b682b7e15384e8ec0bc46bb22e145d74bcba9f2db",
+     "timestamp": "2026-09-09T18:27:21",
+     "block": 109770502,
+     "txId": "49833"
+    },
+    {
+     "root": "84ae0a0a08ef2f44becc99e40f9995e6fe82d9931ed6e2412b23ca999f86b90d",
+     "timestamp": "2026-09-09T18:27:51",
+     "block": 109770512,
+     "txId": "49834"
+    }
+   ],
+   "resolution": "the chain cannot decide which root is authoritative; the operator must publish that, or every verifier will pick a different one"
+  }
+ ],
+ "remedy": [
+  "add an epoch field to the payload so (epoch, height) is unique across process incarnations - one field, and it prevents every future fork",
+  "run HeightLedger.check() before broadcasting; it refuses a root that contradicts one already committed at the same key",
+  "publish which root is authoritative for each forked height, or state plainly that none is",
+  "do not delete or rewrite these records - they are permanent and a correction that hides the original is worse than the original"
+ ]
+}

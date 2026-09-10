@@ -189,9 +189,36 @@ def dedupe(found: Sequence["Contradiction"]) -> List["Contradiction"]:
     return [best[k] for k in order]
 
 
+COUNTER_FIELDS = ("seq", "height", "version", "count", "index", "n")
+
+
+def numeric_claim_fields(claim: Dict[str, Any]) -> List[str]:
+    """Every numeric claim field that is not a counter.
+
+    A counter (seq, height, version) is an identifier, not an amount, and comparing
+    it against a balance is meaningless. Everything else numeric is an assertion
+    about quantity and must be fundable by the balance that backs it.
+    """
+    out = []
+    for k, v in claim.items():
+        if k in COUNTER_FIELDS:
+            continue
+        if isinstance(v, bool):
+            continue
+        if isinstance(v, (int, float)):
+            out.append(k)
+        elif isinstance(v, str):
+            try:
+                float(v)
+            except ValueError:
+                continue
+            out.append(k)
+    return out
+
+
 def attest(claim: Dict[str, Any], state: Dict[str, Any],
            balance: Optional[Any] = None,
-           amount_field: str = "lockedSaos",
+           amount_field: Optional[str] = None,
            balance_field: str = "depthSaos",
            chain: Optional[str] = None) -> Dict[str, Any]:
     """Decide whether this claim may be published. Refuses rather than warns.
@@ -207,11 +234,15 @@ def attest(claim: Dict[str, Any], state: Dict[str, Any],
     note = claim.get("note") or ""
     if note:
         found += check_note_against_state(note, state)
-    if amount_field in claim:
-        found += check_amount_against_balance(
-            claim.get(amount_field),
-            balance if balance is not None else state.get(balance_field),
-            amount_field)
+    # Check EVERY numeric claim field, not one. An earlier version took a single
+    # amount_field and defaulted it to lockedSaos, so depthBefore: 106.868 against a
+    # balance of 0.19776475 was never examined at all. Checking one number in a
+    # claim that asserts several is not verification.
+    amt_balance = balance if balance is not None else state.get(balance_field)
+    fields = [amount_field] if amount_field else numeric_claim_fields(claim)
+    for af in fields:
+        if af in claim:
+            found += check_amount_against_balance(claim.get(af), amt_balance, af)
     if claim.get("srcTxid") is not None:
         found += check_txid_pointer(claim.get("srcTxid"), chain)
     derived = [k for k in claim

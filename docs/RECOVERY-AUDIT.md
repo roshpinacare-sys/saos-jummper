@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=quotes the defective reconstruction signature and the public-keyed MAC it reports -->
 
 # Recovery Audit - the path you only use after everything else has failed
 

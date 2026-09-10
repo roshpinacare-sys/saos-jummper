@@ -1,4 +1,3 @@
-# hardening:allow-file ALL reason=test fixtures ARE the real defects; every rule is asserted against them
 """Hardening engine tested against the REAL defects read out of this estate.
 
 Every fixture is a snippet taken from a file read directly from a repository

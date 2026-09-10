@@ -1,4 +1,4 @@
-# hardening:allow-file ALL reason=module docstring quotes the on-chain op shape it is designed to replace
+# hardening:allow-file H-18 reason=capability matrix describes commit-reveal in prose; a description is not an implementation
 """What costs money elsewhere and is free on our network - with honest limits.
 
 Everything here is grounded in numbers verified against live mainnet on

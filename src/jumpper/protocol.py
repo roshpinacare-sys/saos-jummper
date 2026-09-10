@@ -1,4 +1,3 @@
-# hardening:allow-file ALL reason=module docstring quotes the on-chain op shape it is designed to replace
 """Live HIVE protocol constants - fetched from mainnet, not remembered.
 
 Read from api.openhive.network via condenser_api.get_config on 2026-09-08.

@@ -1,4 +1,3 @@
-<!-- hardening:allow-file ALL reason=quotes the risk-classification code paths and the missing specification it depends on -->
 
 # Trust Gate - two correct halves that are not connected
 

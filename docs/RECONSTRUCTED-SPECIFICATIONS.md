@@ -212,6 +212,106 @@ consistency proofs make a split-view detectable **"by any monitor that compares"
 Witnesses and gossip broaden who compares. A public anchor removes the condition
 entirely, because then everyone can compare against the same committed root.
 
+## Third pass - §2.B is now complete, and the product thesis is recovered
+
+A third scan covered all 22 files in `kernel/transparency-log/` and
+`kernel/track-record/` (171,038 characters). It recovered the last missing item
+numbers and three files that had not been examined at all.
+
+### §2.B - selective disclosure, now fully mapped
+
+| item | module | what it implements |
+|---|---|---|
+| **§2.B-1** | `count-proof.ts` | "I have at least N actions on record, and 0 of them were denied" - verifiable offline with only the proof and the prover's public key. Its own header: "THIS MODULE (sub-step **first** of §2.B)" |
+| **§2.B-2** | `predicate-proof.ts` | selective disclosure for numeric predicates, with an explicit honesty note that it is NOT zero-knowledge cryptography |
+| **§2.B-3** | `redacted-proof-bundle.ts` | proves trustworthiness **without revealing which actions, assets or counterparties** are involved |
+
+§2.B-3 is the most interesting of the three. A full `TrustProofBundleV2` contains
+raw passport entries, evidence items, ledger refs and approval traces - commercially
+sensitive. The redacted bundle exposes only verdict-level fields (counts, score,
+explanation, issuedAt, validUntil, tenantId, identityId) plus a **SHA-256 digest of
+every redacted array** - commitment without disclosure. Its stated properties:
+zero external dependencies, fail-closed (bad input throws on build, malformed
+bundle returns false on verify), deterministic, tenant-scoped, version `"2r"`, and
+the verifier rejects `"2"` and any other version.
+
+### §2.D - witnesses, two more items identified
+
+| item | module |
+|---|---|
+| §2.D-10 | `witness-gossip-sim.ts` |
+| §2.D-12 | `witness-liveness.ts` **and** `witness-registry.ts` - two modules cite the same item |
+
+`witness.ts` says "sub-step" without a number. Items 1 through 9 and 11 remain
+unknown.
+
+### The build chronology, extended
+
+| revision | module | what it added |
+|---|---|---|
+| **v125** | `proof-bundle.ts` | the original portable trust proof |
+| v235 | `approval-policy.ts` | DecisionTrace signed over canonical JSON |
+| v286 | `approval-policy.ts` | contextual risk escalation |
+| v297 | `reputation-policy.ts` | TrackRecordCache to reputationScore wiring |
+| v298 | `approval-policy.ts` | risk-intelligence fusion |
+| v320 | `approval-policy.ts` | identity fields from `agentProvenance` |
+| **v370** | `proof-bundle-v2.ts` | `validUntil` freshness bound; bundles built before v370 never set it, and the verifier still accepts them |
+| v379 | `witness.ts` | consistency proofs |
+| v384 | `approval-policy.ts` | hoisting fix so the legacy path still computes contextual risk |
+| v387 | `witness.ts`, `witness-registry.ts`, `witness-liveness.ts` | the crypto core, a tenant-scoped registry, liveness |
+| **v405** | `witness-gossip-sim.ts` | the gossip simulation |
+
+Roughly 280 revisions from v125 to v405.
+
+### The product thesis, recovered in full
+
+`proof-bundle.ts` (v125) states it more completely than `coding-actions.ts` did:
+
+> Public Trust API: the portable, externally-verifiable proof of a track record
+> (deep-audit report, **cycle K7 - "the real moat"**).
+>
+> **The track record's score is only valuable if a THIRD PARTY can trust it without
+> trusting us.** A proof bundle packages the computed TrackRecord, the supporting
+> Action Passports (each already self-verifying via the kernel signer), the issuer
+> public key and algorithm, and a bundle-level hash over the canonical contents, so
+> any party can (1) verify each passport offline with the public key, (2) recompute
+> the score from the same passports, (3) confirm the bundle hash. **Trust becomes
+> PORTABLE** - the asset the report says competitors cannot copy because it is
+> earned, signed history.
+
+`proof-bundle-v2.ts` extends it with canonical JSON (sorted keys, BigInt to string),
+sha256 digests for evidence, ledger entries and policies, a signer key manifest
+(kid + algorithm + publicKey), evidence and approval and ledger and policy refs, an
+**offline deterministic verifier that is fail-closed**, and a 24-hour default
+validity window.
+
+### The gap this exposes, and it is the same one
+
+`proof-bundle-v2.ts` carries `issuedAt` and `validUntil`. Both are **self-declared
+by the issuer**. The bundle proves who signed it and that its contents have not
+changed. It does not prove **when** it was issued - nothing outside the issuer
+attests to that.
+
+So a bundle can be back-dated, or presented as fresh when it is not, and the
+offline verifier has no way to tell. That is structurally identical to the two gaps
+already documented here:
+
+| artifact | what it proves | what it cannot prove |
+|---|---|---|
+| `TrustProofBundleV2` | authorship and content integrity | **when it was issued** |
+| audit hash chain | internal consistency | **that it has not been truncated** |
+| transparency log root | the operator committed to it | **that anyone else ever saw it** |
+
+All three are closed by the same thing: **a free public timestamp.** `graphene.py`
+anchors at zero fee, `packing.py` fits 154 roots per operation, and `sth.py` packs
+148 to 177 signed tree heads into one. A bundle hash anchored to HIVE mainnet
+becomes proof of issuance time that no issuer can move.
+
+That is the single change that converts three separate "trust us on this one point"
+gaps into none.
+
+---
+
 ## What the second pass did NOT recover
 
 The eight previously unread `kernel/risk/` files were searched for MANIFEST

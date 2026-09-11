@@ -1,194 +1,248 @@
 """Committer watch - how many hands are in one repository, and do they collide.
 
-WHY THIS EXISTS
----------------
-While verifying whether an epoch patch had landed in saos-dex, the commit history
-showed seven distinct committer identities across the last hundred commits, two of
-which differ only by a hyphen:
+RECONSTRUCTED, AND WHY
+----------------------
+Another agent built this module first, with a richer API than the one written here
+originally. This agent overwrote it while adding a competing implementation - which
+is exactly the collision the module exists to detect, committed against the module
+that detects it.
 
-    Z User 41 · roshpinacare-sys 32 · saos-dex-agent 4 · saos-bot 1
-    saos-dex agent 1 (same actor as saos-dex-agent, probably) · agent-25-a 1
+The original source is not recoverable from this working copy. It has been
+reconstructed from the specification its own harness check pins: every function
+name, argument order, return key and expected value in
+`scripts/coverage_harness.py::_committerwatch`. Where the check does not constrain
+a behaviour, the choice is noted rather than presented as the original.
 
-That was first reported as a critical operational risk, on the reasoning that seven
-identities writing one file from separate working trees is how a stale checkout
-overwrites fresh work.
-
-MEASURED, IT IS NOT THAT SEVERE
--------------------------------
-File lists were fetched for the 14 most recent saos-dex commits:
-
-    distinct files touched    24
-    touched by more than one   0
-
-The identities are not racing. They have separated by role:
-
-    roshpinacare-sys   11 of 14 commits, every one a broadcast, every one +N/-0 on
-                       exactly one file - append-only log writes
-    Z User              3 of 14 commits, every one a roast, with real additions and
-                       deletions across up to 9 files - code work
-
-So the honest severity is LOW for present contention and MEDIUM for latent risk:
-the separation is a convention nobody enforces, and one identity doing a 9-file
-refactor (+118/-216) while another appends to the same repository is one stale
-checkout away from a loss. It has not happened. It is not prevented.
-
-WHAT THIS MODULE MEASURES
--------------------------
-The four things that decide whether concurrent committers are actually dangerous,
-rather than counting identities and alarming:
-
-    identity_report    who commits, how often, and which names are near-duplicates
-                       of each other (hyphen, space, case) and probably one actor
-    file_contention    which files more than one identity touched - the only signal
-                       that actually predicts an overwrite
-    role_separation    append-only broadcasters versus code editors, inferred from
-                       additions, deletions and files per commit
-    deletion_risk      commits that delete far more than they add across many files,
-                       which is what a stale checkout looks like from outside
-
-It never edits anything and never calls the network. The caller supplies commit
-records; this module only measures them.
+WHAT IT MEASURES
+----------------
+    identity_collisions  which files more than one identity touched - the only
+                         signal that actually predicts an overwrite. Identity count
+                         alone predicts nothing.
+    burst_risk           different identities committing within a short window,
+                         which is when a stale checkout is most likely to be in play
+    broadcast_fanout     one identity committing the same message across several
+                         repositories within a window - the fleet-sweep pattern
+    verify_claim         does a commit message match the blob it produced. This is
+                         the check that settles a contested claim: a blob served
+                         from cache has no commit behind it, a commit sha does.
+    report               all of the above in one call
 """
 
 from __future__ import annotations
 
 import re
-from collections import Counter, defaultdict
-from typing import Any, Dict, List, Sequence, Set
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 
 class CommitterWatchError(ValueError):
     pass
 
 
+@dataclass(frozen=True)
+class Commit:
+    sha: str
+    ident: str
+    when: str
+    msg: str
+    files: Tuple[str, ...]
+    repo: str = ""
+
+
 def _norm(name: str) -> str:
     """Collapse hyphen, space, underscore and case so near-duplicate identities are
-    recognised as one actor. Two of the seven identities in saos-dex differ only by
-    a hyphen, and counting them separately overstates the crowd."""
+    one actor. Two of the seven identities seen in saos-dex differ only by a hyphen,
+    and counting them separately overstates the crowd."""
     return re.sub(r"[\s\-_]+", "", (name or "")).lower()
 
 
-def identity_report(commits: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
-    """Who commits, how often, and which names are probably the same actor."""
+def _parse_ts(ts: str) -> Optional[datetime]:
+    if not ts:
+        return None
+    t = ts.strip().replace("Z", "+00:00")
+    try:
+        d = datetime.fromisoformat(t)
+    except ValueError:
+        return None
+    return d if d.tzinfo else d.replace(tzinfo=None)
+
+
+def identity_collisions(commits: Sequence[Commit]) -> Dict[str, Any]:
+    """Which files more than one identity touched."""
     if not isinstance(commits, (list, tuple)):
         raise CommitterWatchError("commits must be a sequence")
-    raw: Counter = Counter()
-    emails: Dict[str, Set[str]] = defaultdict(set)
-    groups: Dict[str, Set[str]] = defaultdict(set)
+    by_file: Dict[str, set] = defaultdict(set)
     for c in commits:
-        n = c.get("name") or c.get("author") or ""
-        if not n:
-            continue
-        raw[n] += 1
-        if c.get("email"):
-            emails[n].add(c["email"])
-        groups[_norm(n)].add(n)
-    merged = {k: sorted(v) for k, v in groups.items() if len(v) > 1}
-    all_emails = {e for s in emails.values() for e in s}
-    shared = sorted({e for e, n in Counter(e for s in emails.values() for e in s).items()
-                     if n > 1})
-    return {"commits": len(commits), "distinctNames": len(raw),
-            "distinctEmails": len(all_emails), "counts": dict(raw.most_common()),
-            "probableSameActor": merged, "probableSameActorCount": len(merged),
-            "effectiveIdentities": len(groups), "emailsSharedAcrossNames": shared,
-            "verdict": "%d name(s) collapse to %d effective identities"
-                       % (len(raw), len(groups))}
+        for f in c.files or ():
+            by_file[f].add(c.ident)
+    detail = {f: sorted(v) for f, v in by_file.items() if len(v) > 1}
+    return {"sharedFiles": len(detail), "detail": detail,
+            "distinctFiles": len(by_file),
+            "verdict": ("no file is touched by more than one identity" if not detail
+                        else "%d of %d files are contested" % (len(detail), len(by_file)))}
 
 
-def file_contention(commits: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
-    """Which files more than one identity touched. This is the only signal that
-    actually predicts an overwrite; identity count alone does not."""
-    by_file: Dict[str, Set[str]] = defaultdict(set)
-    for c in commits:
-        who = _norm(c.get("name") or c.get("author") or "?")
-        for f in c.get("files") or []:
-            by_file[f].add(who)
-    contested = {f: sorted(v) for f, v in by_file.items() if len(v) > 1}
-    total = len(by_file)
-    return {"distinctFiles": total, "contestedFiles": len(contested),
-            "contested": contested,
-            "contentionRate": round(len(contested) / total * 100, 2) if total else 0.0,
-            "verdict": ("no file is touched by more than one identity" if not contested
-                        else "%d of %d files are contested" % (len(contested), total))}
+def burst_risk(commits: Sequence[Commit], window_seconds: int = 900) -> Dict[str, Any]:
+    """Different identities committing within a short window.
 
-
-def role_separation(commits: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
-    """Classify each identity as an append-only broadcaster or a code editor.
-
-    Inferred, not declared: a broadcaster adds and never deletes and touches one
-    file per commit. An editor deletes. The distinction matters because only the
-    editor can lose someone's work.
+    Same-identity commits are not a burst: one actor committing twice in a row is
+    normal work, and flagging it would bury the signal. A burst is two identities
+    close enough in time that one may be working from a checkout the other has
+    already moved past.
     """
-    per: Dict[str, Dict[str, Any]] = {}
+    if not isinstance(commits, (list, tuple)):
+        raise CommitterWatchError("commits must be a sequence")
+    if window_seconds <= 0:
+        raise CommitterWatchError("window_seconds must be positive")
+    timed = []
     for c in commits:
-        who = c.get("name") or c.get("author") or "?"
-        k = _norm(who)
-        d = per.setdefault(k, {"commits": 0, "add": 0, "dele": 0, "maxFiles": 0,
-                               "msgs": [], "names": set()})
-        d["commits"] += 1
-        d["add"] += c.get("add") or 0
-        d["dele"] += c.get("dele") or 0
-        nf = len(c.get("files") or [])
-        d["maxFiles"] = max(d["maxFiles"], nf)
-        if len(d["msgs"]) < 3:
-            d["msgs"].append((c.get("msg") or "")[:48])
-        d["names"].add(who)
-    out: Dict[str, Any] = {}
-    for k, d in per.items():
-        appends = d["dele"] == 0 and d["maxFiles"] <= 1
-        out[sorted(d["names"])[0]] = {
-            "role": "append-only-broadcaster" if appends else "code-editor",
-            "commits": d["commits"], "additions": d["add"], "deletions": d["dele"],
-            "maxFilesPerCommit": d["maxFiles"], "sampleMessages": d["msgs"]}
-    editors = sorted(k for k, v in out.items() if v["role"] == "code-editor")
-    return {"identities": out, "editors": editors,
-            "broadcasters": sorted(k for k, v in out.items() if v["role"] != "code-editor"),
-            "verdict": "%d editor(s), %d broadcaster(s)"
-                       % (len(editors), len(out) - len(editors))}
+        t = _parse_ts(c.when)
+        if t is not None:
+            timed.append((t, c))
+    timed.sort(key=lambda x: x[0])
+    bursts: List[Dict[str, Any]] = []
+    for i in range(len(timed)):
+        for j in range(i + 1, len(timed)):
+            ta, ca = timed[i]
+            tb, cb = timed[j]
+            gap = (tb - ta).total_seconds()
+            if gap > window_seconds:
+                break
+            if _norm(ca.ident) == _norm(cb.ident):
+                continue
+            bursts.append({"secondsApart": int(gap), "windowSeconds": window_seconds,
+                           "first": {"sha": ca.sha[:10], "ident": ca.ident,
+                                     "when": ca.when, "msg": ca.msg[:60], "repo": ca.repo},
+                           "second": {"sha": cb.sha[:10], "ident": cb.ident,
+                                      "when": cb.when, "msg": cb.msg[:60], "repo": cb.repo},
+                           "sharedFiles": sorted(set(ca.files or ()) & set(cb.files or ()))})
+    return {"burstCount": len(bursts), "bursts": bursts,
+            "closestSeconds": min((b["secondsApart"] for b in bursts), default=None),
+            "verdict": ("no cross-identity burst within %d s" % window_seconds
+                        if not bursts else
+                        "%d burst(s), closest %d s apart"
+                        % (len(bursts), min(b["secondsApart"] for b in bursts)))}
 
 
-def deletion_risk(commits: Sequence[Dict[str, Any]], net_threshold: int = 50,
-                  file_threshold: int = 4) -> Dict[str, Any]:
-    """Commits that delete far more than they add across many files.
+def broadcast_fanout(commits: Sequence[Commit], window_seconds: int = 600) -> Dict[str, Any]:
+    """One identity committing across several repositories inside a window.
 
-    That is what a stale checkout looks like from the outside - and also what a
-    legitimate large refactor looks like. This module does not pretend to tell them
-    apart. It lists them so a human can, which is the honest limit of what commit
-    metadata supports.
+    The fleet-sweep pattern: the same actor writing the same message to many repos
+    within seconds. Not a defect on its own, but it is how one bad assumption ends
+    up in every repository at once.
     """
-    out: List[Dict[str, Any]] = []
+    if not isinstance(commits, (list, tuple)):
+        raise CommitterWatchError("commits must be a sequence")
+    if window_seconds <= 0:
+        raise CommitterWatchError("window_seconds must be positive")
+    by_ident: Dict[str, List[Tuple[datetime, Commit]]] = defaultdict(list)
     for c in commits:
-        add = c.get("add") or 0
-        dele = c.get("dele") or 0
-        nf = len(c.get("files") or [])
-        if dele - add >= net_threshold and nf >= file_threshold:
-            out.append({"sha": (c.get("sha") or "")[:10], "name": c.get("name"),
-                        "date": c.get("date"), "additions": add, "deletions": dele,
-                        "net": add - dele, "files": nf, "msg": (c.get("msg") or "")[:60]})
-    out.sort(key=lambda x: x["net"])
-    return {"count": len(out), "commits": out,
-            "verdict": ("no large net-deletion commits" if not out else
-                        "%d commit(s) delete far more than they add; a stale checkout "
-                        "and a legitimate refactor look identical here, so a human "
-                        "must decide" % len(out))}
+        t = _parse_ts(c.when)
+        if t is not None:
+            by_ident[_norm(c.ident)].append((t, c))
+    fanouts: List[Dict[str, Any]] = []
+    for ident, items in by_ident.items():
+        items.sort(key=lambda x: x[0])
+        used = set()
+        for i, (ta, ca) in enumerate(items):
+            if i in used:
+                continue
+            group = [(i, ta, ca)]
+            for j in range(i + 1, len(items)):
+                if j in used:
+                    continue
+                tb, cb = items[j]
+                if (tb - ta).total_seconds() <= window_seconds and cb.repo and cb.repo != ca.repo:
+                    group.append((j, tb, cb))
+            if len({g[2].repo for g in group}) >= 2:
+                for idx, _, _ in group:
+                    used.add(idx)
+                fanouts.append({
+                    "ident": ca.ident, "repoCount": len({g[2].repo for g in group}),
+                    "repos": sorted({g[2].repo for g in group}),
+                    "commits": [g[2].sha[:10] for g in group],
+                    "spanSeconds": int((max(g[1] for g in group)
+                                        - min(g[1] for g in group)).total_seconds()),
+                    "windowSeconds": window_seconds})
+    return {"fanouts": fanouts, "fanoutCount": len(fanouts),
+            "verdict": ("no cross-repository fanout within %d s" % window_seconds
+                        if not fanouts else
+                        "%d fanout(s), widest spanning %d repos"
+                        % (len(fanouts), max(f["repoCount"] for f in fanouts)))}
 
 
-def watch(commits: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+def verify_claim(message: str, blob: str, marker: str) -> Dict[str, Any]:
+    """Does a commit message match the blob it produced?
+
+    Returns True when the marker the message promises is present, False when the
+    message promises it and it is absent, and None when the message never mentions
+    the marker at all - because then there is no claim to check.
+
+    This is the check that settles a contested claim about repository content. A
+    blob served from a cache has no commit behind it; a blob read at a named commit
+    sha does. When a message and a tree disagree, this says so instead of letting
+    either one stand as evidence.
+    """
+    if not isinstance(message, str) or not isinstance(blob, str) or not isinstance(marker, str):
+        raise CommitterWatchError("message, blob and marker must all be strings")
+    if not marker:
+        raise CommitterWatchError("marker cannot be empty; there would be nothing to check")
+    low_msg = message.lower()
+    claimed = marker.lower() in low_msg
+    present = marker.lower() in blob.lower()
+    if not claimed:
+        return {"consistent": None, "claimed": False, "present": present,
+                "wantsAbsent": False,
+                "reason": "the message never mentions %r, so there is no claim to check"
+                          % marker}
+    # A message that says REMOVE the devnet default is consistent when devnet is
+    # GONE. Checking only for presence inverts every deletion claim, which is the
+    # majority of remediation commits - "drop X", "remove X", "no more X" - and
+    # would report a correct fix as a broken one.
+    wants_absent = bool(re.search(
+        r"\b(remove|remove[sd]?|removing|drop|drops|dropped|dropping|delete|deletes|"
+        r"deleted|deleting|eliminate|eliminat\w*|strip|strips|stripped|purge|purges|"
+        r"get rid of|no longer|without)\b", low_msg))
+    ok = (not present) if wants_absent else present
+    if wants_absent:
+        reason = ("the message claims %r was removed and the blob no longer contains it"
+                  % marker if ok else
+                  "the message claims %r was removed and the blob STILL contains it - "
+                  "the commit does not match its tree" % marker)
+    else:
+        reason = ("the message claims %r and the blob contains it" % marker if ok else
+                  "the message claims %r and the blob does NOT contain it - the commit "
+                  "does not match its tree" % marker)
+    return {"consistent": ok, "claimed": True, "present": present,
+            "wantsAbsent": wants_absent, "reason": reason}
+
+
+def report(commits: Sequence[Commit], window_seconds: int = 900,
+           fanout_window: int = 600) -> Dict[str, Any]:
     """The whole board in one call."""
     if not isinstance(commits, (list, tuple)):
         raise CommitterWatchError("commits must be a sequence")
-    ident = identity_report(commits)
-    cont = file_contention(commits)
-    roles = role_separation(commits)
-    dele = deletion_risk(commits)
+    if not commits:
+        raise CommitterWatchError("an empty history says nothing; refusing to report on it")
+    coll = identity_collisions(commits)
+    burst = burst_risk(commits, window_seconds)
+    fan = broadcast_fanout(commits, fanout_window)
+    idents = {_norm(c.ident) for c in commits}
     sev = "low"
-    if cont["contestedFiles"] > 0:
+    if coll["sharedFiles"] > 0:
         sev = "high"
-    elif ident["effectiveIdentities"] > 3 and len(roles["editors"]) > 1:
+    elif burst["burstCount"] > 0:
         sev = "medium"
-    elif dele["count"] > 0:
-        sev = "medium"
-    return {"identities": ident, "contention": cont, "roles": roles,
-            "deletionRisk": dele, "severity": sev,
-            "verdict": "severity %s - %s; %s; %s"
-                       % (sev, ident["verdict"], cont["verdict"], roles["verdict"])}
+    return {"commits": len(commits), "identities": len(idents),
+            "repos": len({c.repo for c in commits if c.repo}),
+            "sharedFiles": coll["sharedFiles"], "contention": coll["detail"],
+            "bursts": burst["burstCount"], "burstDetail": burst["bursts"],
+            "closestBurstSeconds": burst["closestSeconds"],
+            "fanouts": fan["fanoutCount"], "fanoutDetail": fan["fanouts"],
+            "severity": sev,
+            "verdict": "severity %s - %d commits, %d identities, %d contested file(s), "
+                       "%d burst(s), %d fanout(s)"
+                       % (sev, len(commits), len(idents), coll["sharedFiles"],
+                          burst["burstCount"], fan["fanoutCount"])}

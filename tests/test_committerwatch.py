@@ -1,166 +1,142 @@
-# hardening:allow-file ALL reason=fixtures reproduce the real eight-identity committer census
-"""Tests for committer watch, against the real identity census: 271 commits across
-five repositories carrying eight distinct committer identities."""
+# hardening:allow-file ALL reason=fixtures reproduce the real saos-dex committer sample
+"""Tests for committer watch, calibrated on the real saos-dex sample."""
 
 import unittest
 
 from jumpper import committerwatch as CW
 
-RELAY = "src/lib/dex/relay.ts"
-
-def C(sha, ident, when, msg, files, repo="saos-dex"):
-    return CW.Commit(sha, ident, when, msg, tuple(files), repo)
-
-def two_identities_on_one_file():
-    return [C("a" * 40, "Z User", "2026-09-11T05:21:52Z", "roast-78", [RELAY]),
-            C("b" * 40, "roshpinacare-sys", "2026-09-11T05:26:18Z", "broadcast r29", [RELAY])]
-
-def fanout():
-    return [C("c" * 40, "saos-agent", "2026-09-11T15:28:17Z", "sync", ["README.md"], "Saosmartwallet"),
-            C("d" * 40, "saos-agent", "2026-09-11T15:28:18Z", "sync", ["README.md"], "roshpina"),
-            C("e" * 40, "saos-agent", "2026-09-11T15:28:21Z", "sync", ["README.md"], "saos-jummper")]
+REAL = [
+    {"sha": "e6b17895", "name": "roshpinacare-sys", "email": "a@b", "date": "d",
+     "msg": "broadcast: v71", "files": ["broadcasts/v71.md"], "add": 44, "dele": 0},
+    {"sha": "85878717", "name": "Z User", "email": "z@y", "date": "d",
+     "msg": "roast-82", "files": ["a.ts", "b.ts", "c.ts", "d.ts", "e.ts",
+                                  "f.ts", "g.ts", "h.ts", "i.ts"],
+     "add": 118, "dele": 216},
+    {"sha": "ae711603", "name": "Z User", "email": "z@y", "date": "d",
+     "msg": "roast-81", "files": ["j.ts", "k.ts", "l.ts", "m.ts"], "add": 73, "dele": 37},
+]
 
 
-class TestIdentityCollisions(unittest.TestCase):
-    def test_two_identities_on_one_file_is_a_collision(self):
-        r = CW.identity_collisions(two_identities_on_one_file())
-        self.assertEqual(r["sharedFiles"], 1)
-        self.assertEqual(r["detail"][RELAY], ["Z User", "roshpinacare-sys"])
+def C(name, files, add=0, dele=0, msg="m", email=None, sha="s"):
+    return {"sha": sha, "name": name, "email": email, "date": "d", "msg": msg,
+            "files": files, "add": add, "dele": dele}
 
-    def test_one_identity_writing_a_file_is_not_a_collision(self):
-        r = CW.identity_collisions([C("a" * 40, "Z User", "t", "m", [RELAY])])
-        self.assertEqual(r["sharedFiles"], 0)
+
+class TestIdentityCollapse(unittest.TestCase):
+    def test_hyphen_and_space_variants_are_one_actor(self):
+        r = CW.identity_report([C("saos-dex-agent", [], 1), C("saos-dex agent", [], 1),
+                                C("SAOS-DEX_AGENT", [], 1)])
+        self.assertEqual(r["distinctNames"], 3)
+        self.assertEqual(r["effectiveIdentities"], 1)
+        self.assertEqual(r["probableSameActorCount"], 1)
+
+    def test_distinct_actors_stay_distinct(self):
+        r = CW.identity_report(REAL)
+        self.assertEqual(r["distinctNames"], 2)
+        self.assertEqual(r["effectiveIdentities"], 2)
+        self.assertEqual(r["probableSameActor"], {})
+
+    def test_emails_shared_across_names_are_reported(self):
+        r = CW.identity_report([C("alice", [], email="x@y"), C("bob", [], email="x@y")])
+        self.assertEqual(r["emailsSharedAcrossNames"], ["x@y"])
+        self.assertEqual(r["distinctEmails"], 1); self.assertEqual(r["distinctNames"], 2)
+
+    def test_empty_input(self):
+        r = CW.identity_report([])
+        self.assertEqual(r["commits"], 0); self.assertEqual(r["effectiveIdentities"], 0)
+
+    def test_a_non_sequence_is_refused(self):
+        with self.assertRaises(CW.CommitterWatchError): CW.identity_report("x")
+
+
+class TestFileContention(unittest.TestCase):
+    def test_the_real_sample_has_no_contention(self):
+        r = CW.file_contention(REAL)
+        self.assertEqual(r["contestedFiles"], 0)
+        self.assertEqual(r["distinctFiles"], 14)   # 1 broadcaster + 9 + 4 editor files
         self.assertIn("no file", r["verdict"])
 
-    def test_two_identities_on_different_files_is_not_a_collision(self):
-        r = CW.identity_collisions([C("a" * 40, "Z User", "t", "m", ["x.ts"]),
-                                    C("b" * 40, "saos-bot", "t", "m", ["y.ts"])])
-        self.assertEqual(r["sharedFiles"], 0)
+    def test_two_identities_on_one_file_is_contention(self):
+        r = CW.file_contention([C("a", ["shared.ts"], 1), C("b", ["shared.ts"], 1)])
+        self.assertEqual(r["contestedFiles"], 1); self.assertEqual(r["contentionRate"], 100.0)
+        self.assertEqual(r["contested"]["shared.ts"], ["a", "b"])
 
-    def test_commits_with_no_files_are_tolerated(self):
-        r = CW.identity_collisions([C("a" * 40, "Z User", "t", "m", [])])
-        self.assertEqual(r["files"], 0); self.assertEqual(r["sharedFiles"], 0)
+    def test_the_same_actor_under_two_spellings_is_not_contention(self):
+        r = CW.file_contention([C("saos-dex-agent", ["x.ts"]), C("saos-dex agent", ["x.ts"])])
+        self.assertEqual(r["contestedFiles"], 0)
 
-    def test_the_census_identities_are_all_counted(self):
-        cs = [C("a" * 40, i, "t", "m", [RELAY]) for i in
-              ("Z User", "roshpinacare-sys", "saos-agent", "saos-bot")]
-        self.assertEqual(CW.identity_collisions(cs)["identityCount"], 4)
-
-
-class TestBurstRisk(unittest.TestCase):
-    def test_a_cross_identity_burst_inside_the_window_is_detected(self):
-        r = CW.burst_risk(two_identities_on_one_file(), window_seconds=900)
-        self.assertEqual(r["burstCount"], 1)
-        self.assertEqual(r["bursts"][0]["secondsApart"], 266)
-        self.assertEqual(r["bursts"][0]["file"], RELAY)
-
-    def test_the_same_identity_repeatedly_is_not_a_burst(self):
-        cs = [C("a" * 40, "Z User", "2026-09-11T05:21:52Z", "m", [RELAY]),
-              C("b" * 40, "Z User", "2026-09-11T05:26:18Z", "m", [RELAY])]
-        self.assertEqual(CW.burst_risk(cs)["burstCount"], 0)
-
-    def test_outside_the_window_is_not_a_burst(self):
-        r = CW.burst_risk(two_identities_on_one_file(), window_seconds=60)
-        self.assertEqual(r["burstCount"], 0)
-
-    def test_bursts_are_sorted_closest_first(self):
-        cs = [C("a" * 40, "A", "2026-09-11T00:00:00Z", "m", ["f"]),
-              C("b" * 40, "B", "2026-09-11T00:10:00Z", "m", ["f"]),
-              C("c" * 40, "C", "2026-09-11T00:10:30Z", "m", ["f"])]
-        b = CW.burst_risk(cs, window_seconds=3600)["bursts"]
-        self.assertEqual(b[0]["secondsApart"], 30)
-
-    def test_an_unparseable_timestamp_is_skipped_not_guessed(self):
-        cs = [C("a" * 40, "A", "not-a-date", "m", ["f"]),
-              C("b" * 40, "B", "2026-09-11T00:00:00Z", "m", ["f"])]
-        self.assertEqual(CW.burst_risk(cs)["burstCount"], 0)
-
-    def test_a_non_positive_window_is_refused(self):
-        with self.assertRaises(CW.CommitterWatchError):
-            CW.burst_risk(two_identities_on_one_file(), window_seconds=0)
+    def test_disjoint_files_are_not_contention(self):
+        r = CW.file_contention([C("a", ["x.ts"]), C("b", ["y.ts"])])
+        self.assertEqual(r["contestedFiles"], 0); self.assertEqual(r["distinctFiles"], 2)
 
 
-class TestBroadcastFanout(unittest.TestCase):
-    def test_one_identity_across_three_repositories_is_detected(self):
-        r = CW.broadcast_fanout(fanout(), window_seconds=600)
-        self.assertEqual(len(r["fanouts"]), 1)
-        self.assertEqual(r["fanouts"][0]["repoCount"], 3)
-        self.assertEqual(r["fanouts"][0]["identity"], "saos-agent")
+class TestRoleSeparation(unittest.TestCase):
+    def test_append_only_is_a_broadcaster(self):
+        r = CW.role_separation([C("bot", ["log.md"], add=40, dele=0)])
+        self.assertEqual(r["identities"]["bot"]["role"], "append-only-broadcaster")
 
-    def test_one_repository_is_not_a_fanout(self):
-        cs = [C("a" * 40, "saos-agent", "2026-09-11T15:28:17Z", "m", ["x"], "r1"),
-              C("b" * 40, "saos-agent", "2026-09-11T15:28:18Z", "m", ["y"], "r1")]
-        self.assertEqual(CW.broadcast_fanout(cs)["fanouts"], [])
+    def test_any_deletion_makes_it_an_editor(self):
+        r = CW.role_separation([C("bot", ["log.md"], add=40, dele=1)])
+        self.assertEqual(r["identities"]["bot"]["role"], "code-editor")
 
-    def test_commits_without_a_repo_are_ignored(self):
-        cs = [C("a" * 40, "A", "2026-09-11T00:00:00Z", "m", ["x"], ""),
-              C("b" * 40, "A", "2026-09-11T00:00:01Z", "m", ["y"], "")]
-        self.assertEqual(CW.broadcast_fanout(cs)["fanouts"], [])
+    def test_touching_two_files_makes_it_an_editor(self):
+        r = CW.role_separation([C("bot", ["a", "b"], add=40, dele=0)])
+        self.assertEqual(r["identities"]["bot"]["role"], "code-editor")
 
-
-class TestVerifyClaim(unittest.TestCase):
-    def test_an_add_claim_with_the_marker_present_is_consistent(self):
-        v = CW.verify_claim("fix(relay): epoch field in the canonical payload",
-                            "const payload = { epoch, height };", "epoch")
-        self.assertTrue(v["consistent"]); self.assertTrue(v["markerPresent"])
-
-    def test_an_add_claim_with_the_marker_absent_is_inconsistent(self):
-        v = CW.verify_claim("fix(relay): epoch field in the canonical payload",
-                            "const payload = { height, stateRoot };", "epoch")
-        self.assertFalse(v["consistent"])
-        self.assertIn("ABSENT", v["verdict"])
-
-    def test_a_remove_claim_with_the_marker_absent_is_consistent(self):
-        v = CW.verify_claim("remove the devnet default", "const R = [mainnet];", "devnet")
-        self.assertTrue(v["consistent"])
-
-    def test_a_remove_claim_with_the_marker_still_there_is_inconsistent(self):
-        v = CW.verify_claim("remove the devnet default", "const R = [devnet];", "devnet")
-        self.assertFalse(v["consistent"])
-        self.assertIn("STILL PRESENT", v["verdict"])
-
-    def test_an_unclassified_message_reports_none_not_a_guess(self):
-        v = CW.verify_claim("chore: tidy", "x = 1", "anything")
-        self.assertIsNone(v["consistent"])
-        self.assertEqual(v["verdict"], "unclassified")
-
-    def test_the_marker_match_is_case_insensitive(self):
-        self.assertTrue(CW.verify_claim("add Epoch handling", "const EPOCH = 1", "epoch")["consistent"])
-
-    def test_empty_inputs_are_refused(self):
-        with self.assertRaises(CW.CommitterWatchError): CW.verify_claim("", "x", "y")
-        with self.assertRaises(CW.CommitterWatchError): CW.verify_claim("add x", "x", "")
+    def test_the_real_sample_splits_cleanly(self):
+        r = CW.role_separation(REAL)
+        self.assertEqual(r["verdict"], "1 editor(s), 1 broadcaster(s)")
+        self.assertEqual(r["broadcasters"], ["roshpinacare-sys"])
+        self.assertEqual(r["editors"], ["Z User"])
+        self.assertEqual(r["identities"]["roshpinacare-sys"]["maxFilesPerCommit"], 1)
+        self.assertEqual(r["identities"]["Z User"]["maxFilesPerCommit"], 9)
 
 
-class TestReportAndInputs(unittest.TestCase):
-    def test_report_combines_all_three_views(self):
-        r = CW.report(two_identities_on_one_file() + fanout())
-        self.assertEqual(r["commits"], 5)
-        self.assertEqual(r["sharedFiles"], 1)
-        self.assertEqual(r["bursts"], 1)
-        self.assertEqual(r["fanouts"], 1)
-        self.assertEqual(r["closestBurstSeconds"], 266)
-        self.assertEqual(sorted(r["repos"]), ["Saosmartwallet", "roshpina", "saos-dex", "saos-jummper"])
+class TestDeletionRisk(unittest.TestCase):
+    def test_the_real_refactor_is_flagged_for_a_human(self):
+        r = CW.deletion_risk(REAL)
+        self.assertEqual(r["count"], 1); self.assertEqual(r["commits"][0]["sha"], "85878717")
+        self.assertEqual(r["commits"][0]["net"], -98)
+        self.assertIn("human must decide", r["verdict"])
 
-    def test_an_empty_history_is_refused(self):
-        with self.assertRaises(CW.CommitterWatchError): CW.report([])
+    def test_a_small_net_deletion_is_not_flagged(self):
+        self.assertEqual(CW.deletion_risk([C("a", ["x","y","z","w"], add=10, dele=20)])["count"], 0)
 
-    def test_from_api_rejects_a_commit_without_a_sha(self):
-        with self.assertRaises(CW.CommitterWatchError):
-            CW.Commit.from_api({"commit": {"author": {"name": "x"}}})
+    def test_a_large_deletion_in_one_file_is_not_flagged(self):
+        self.assertEqual(CW.deletion_risk([C("a", ["x"], add=0, dele=500)])["count"], 0)
 
-    def test_from_api_builds_a_commit(self):
-        c = CW.Commit.from_api({"sha": "f" * 40,
-            "commit": {"author": {"name": "Z User", "date": "2026-09-11T05:21:52Z"},
-                       "message": "roast-78"},
-            "files": [{"filename": RELAY}]}, repo="saos-dex")
-        self.assertEqual(c.identity, "Z User")
-        self.assertEqual(c.files, (RELAY,))
-        self.assertEqual(c.repo, "saos-dex")
+    def test_thresholds_are_honoured(self):
+        rows = [C("a", ["1","2","3","4","5"], add=0, dele=100)]
+        self.assertEqual(CW.deletion_risk(rows, net_threshold=200)["count"], 0)
+        self.assertEqual(CW.deletion_risk(rows, file_threshold=9)["count"], 0)
 
-    def test_an_unnamed_author_becomes_unknown_not_empty(self):
-        c = CW.Commit.from_api({"sha": "f" * 40, "commit": {"author": {}, "message": "m"}})
-        self.assertEqual(c.identity, "unknown")
+    def test_results_are_sorted_worst_first(self):
+        rows = [C("a", ["1","2","3","4"], add=0, dele=60, sha="aaa"),
+                C("b", ["1","2","3","4"], add=0, dele=300, sha="bbb")]
+        self.assertEqual([x["sha"][:3] for x in CW.deletion_risk(rows)["commits"]], ["bbb", "aaa"])
+
+
+class TestWatch(unittest.TestCase):
+    def test_the_real_sample_is_medium_not_critical(self):
+        r = CW.watch(REAL)
+        self.assertEqual(r["severity"], "medium")
+        self.assertEqual(r["contention"]["contestedFiles"], 0)
+
+    def test_contention_raises_severity_to_high(self):
+        rows = REAL + [C("roshpinacare-sys", ["a.ts"], add=1)]
+        self.assertEqual(CW.watch(rows)["severity"], "high")
+
+    def test_a_lone_broadcaster_is_low(self):
+        rows = [C("bot", ["log%d.md" % i], add=10) for i in range(4)]
+        self.assertEqual(CW.watch(rows)["severity"], "low")
+
+    def test_a_bad_input_is_refused(self):
+        with self.assertRaises(CW.CommitterWatchError): CW.watch({})
+
+    def test_the_verdict_carries_the_sub_verdicts(self):
+        v = CW.watch(REAL)["verdict"]
+        for frag in ("severity", "identities", "identity", "editor"):
+            self.assertIn(frag, v)
 
 
 if __name__ == "__main__":

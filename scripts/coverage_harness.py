@@ -688,6 +688,43 @@ def _epochguard():
             " collisions against 2 without it; a repeated height with a different root"
             " bumps instead of forking, and the state survives a restart")
 
+@check("xlock")
+def _xlock():
+    m = importlib.import_module("jumpper.xlock")
+    def T(i, amt, memo, trx, frm="headcorner", to="headcorner"):
+        return [i, {"timestamp": "t", "block": 1, "trx_id": trx,
+                    "op": ["transfer", {"to": to, "from": frm, "amount": amt, "memo": memo}]}]
+    REAL = [
+        T(49621, "0.001 HIVE", "saos:xlock:PHIVE:0.001", "13141ef37777142f11622649d0e022c8402fa0ed"),
+        T(49625, "0.002 HIVE", "saos:xlock:PHIVE:0.002:rt66", "bb3156cdc725b15785d9b67b6c3f47fcc8d12040"),
+        T(49626, "0.001 HIVE", "saos:xunlock:PHIVE:0.001:rt66:7bdec0aa64c761672680c7dfa7ffcdebacddac7e", "454d2d22e7301561680efb66d99e43b37bcde227"),
+        T(49697, "0.050 HIVE", "saos:xlock:PHIVE:0.050", "44be4de1e510cf50dd1d5e7a828000b043815d11"),
+    ]
+    ops = m.parse_history(REAL)
+    assert len(ops) == 4, len(ops)
+    assert all(o.is_self_transfer for o in ops)
+    r = m.reconcile(ops)
+    assert r["verdict"] != "RECONCILED", r["verdict"]
+    assert (r["locks"], r["unlocks"]) == (3, 1)
+    assert r["findingCount"] == 8, r["findingCount"]
+    assert (r["critical"], r["high"]) == (4, 3)
+    assert "unchanged" in r["custody"] and "none" in r["enforcement"]
+    assert r["balances"] == {"rt66": {"locked": "0.002", "unlocked": "0.001"}}
+    kinds = [f["kind"] for f in r["findings"]]
+    assert kinds.count("self-transfer") == 4
+    fmt = [f for f in r["findings"] if f["kind"] == "inconsistent-format"]
+    assert len(fmt) == 1 and fmt[0]["action"] == "xlock" and fmt[0]["fieldCounts"] == [4, 5]
+    assert "lock-without-reference" in kinds and "unlock-cites-foreign-txid" in kinds
+    assert "amount-mismatch" in kinds
+    # a balanced two-party protocol must reconcile, or the checker is just noise
+    CLEAN = [T(1, "1.000 HIVE", "saos:xlock:PHIVE:1.000:r1", "aa", "alice", "escrow"),
+             T(2, "1.000 HIVE", "saos:xunlock:PHIVE:1.000:r1:aa", "bb", "escrow", "alice")]
+    c = m.reconcile(m.parse_history(CLEAN))
+    assert c["verdict"] == "RECONCILED", c["verdict"]
+    assert c["findingCount"] == 0 and c["custody"] == "changed"
+    return ("four real self-transfer memos reconcile to 8 findings (4 critical, 3 high)"
+            " while a balanced two-party protocol reconciles clean")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

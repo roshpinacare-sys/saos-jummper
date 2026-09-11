@@ -770,6 +770,51 @@ def _patchwatch():
             " raising detector are all indeterminate rather than green, and watch()"
             " names the open criticals")
 
+@check("committerwatch")
+def _committerwatch():
+    m = importlib.import_module("jumpper.committerwatch")
+    RELAY = "src/lib/dex/relay.ts"
+    def C(sha, ident, when, msg, files, repo="saos-dex"):
+        return m.Commit(sha, ident, when, msg, tuple(files), repo)
+    pair = [C("a" * 40, "Z User", "2026-09-11T05:21:52Z", "roast-78", [RELAY]),
+            C("b" * 40, "roshpinacare-sys", "2026-09-11T05:26:18Z", "broadcast r29", [RELAY])]
+    coll = m.identity_collisions(pair)
+    assert coll["sharedFiles"] == 1, coll
+    assert coll["detail"][RELAY] == ["Z User", "roshpinacare-sys"]
+    assert m.identity_collisions([C("a" * 40, "Z User", "t", "m", [RELAY])])["sharedFiles"] == 0
+    b = m.burst_risk(pair, window_seconds=900)
+    assert b["burstCount"] == 1 and b["bursts"][0]["secondsApart"] == 266, b
+    assert m.burst_risk(pair, window_seconds=60)["burstCount"] == 0
+    same = [C("a" * 40, "Z User", "2026-09-11T05:21:52Z", "m", [RELAY]),
+            C("b" * 40, "Z User", "2026-09-11T05:26:18Z", "m", [RELAY])]
+    assert m.burst_risk(same)["burstCount"] == 0
+    fan = [C("c" * 40, "saos-agent", "2026-09-11T15:28:17Z", "s", ["R.md"], "Saosmartwallet"),
+           C("d" * 40, "saos-agent", "2026-09-11T15:28:18Z", "s", ["R.md"], "roshpina"),
+           C("e" * 40, "saos-agent", "2026-09-11T15:28:21Z", "s", ["R.md"], "saos-jummper")]
+    f = m.broadcast_fanout(fan, window_seconds=600)
+    assert len(f["fanouts"]) == 1 and f["fanouts"][0]["repoCount"] == 3, f
+    # verify_claim: the check that settles a contested claim from the blob, not the title
+    assert m.verify_claim("fix(relay): epoch field", "const p = { epoch };", "epoch")["consistent"] is True
+    assert m.verify_claim("fix(relay): epoch field", "const p = { height };", "epoch")["consistent"] is False
+    assert m.verify_claim("remove the devnet default", "const R = [mainnet];", "devnet")["consistent"] is True
+    assert m.verify_claim("remove the devnet default", "const R = [devnet];", "devnet")["consistent"] is False
+    assert m.verify_claim("chore: tidy", "x = 1", "anything")["consistent"] is None
+    r = m.report(pair + fan)
+    assert r["commits"] == 5 and r["sharedFiles"] == 1 and r["bursts"] == 1 and r["fanouts"] == 1
+    assert r["closestBurstSeconds"] == 266
+    try:
+        m.report([]); raise AssertionError("an empty history was accepted")
+    except m.CommitterWatchError:
+        pass
+    try:
+        m.Commit.from_api({"commit": {"author": {"name": "x"}}})
+        raise AssertionError("a commit without a sha was accepted")
+    except m.CommitterWatchError:
+        pass
+    return ("a real cross-identity burst on relay.ts measured to 266 seconds, a three-repo"
+            " fan-out by one identity, and verify_claim settling add/remove claims from the"
+            " blob rather than the commit title")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

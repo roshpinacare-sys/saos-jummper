@@ -639,6 +639,55 @@ def _remedy():
     return ("eight real forked heights encode to one zero-fee POSTING op; canonical"
             " requires a supplied root, an invented root is refused, and ambiguous resolves nothing")
 
+@check("epochguard")
+def _epochguard():
+    m = importlib.import_module("jumpper.epochguard")
+    hg = importlib.import_module("jumpper.heightguard")
+    # the real non-increasing sequence read off HIVE mainnet
+    SEQ = [1416, 552, 552, 552, 12, 2088, 444, 14304, 4920, 23028, 1224, 1392, 1476, 1668, 1764]
+    r = m.assign_stream(SEQ)
+    assert r["totalPairs"] == 15 and r["uniquePairs"] == 15, r
+    assert r["collisions"] == 0, r["collisions"]
+    assert r["bumpCount"] == 7, r["bumpCount"]
+    assert len({p[0] for p in [(a["epoch"], a["height"]) for a in r["assignments"]]}) == 8
+    # without the tracker the same sequence collides
+    bare = [("", h) for h in SEQ]
+    assert len(bare) - len(set(bare)) == 2
+    # every return path carries an epoch the caller can use directly
+    for a in r["assignments"]:
+        assert a["epoch"] and a["action"] in (m.FIRST, m.CONTINUE, m.BUMPED)
+    # a repeated height with a DIFFERENT root must not create a fork
+    R1 = "a54a51c7524dabc41d09d859f5d642aa836947482ef30467aef6e5a3f66416d0"
+    R2 = "d93e5a50d5e731ca81555b6bfc5dfd7fbc07e9b6e21357ca330e27dd9d3ea05d"
+    t = m.EpochTracker(); led = hg.HeightLedger()
+    v1 = m.guard_before_broadcast(t, led, 1764, R1, "2026-09-09T18:27:21")
+    v2 = m.guard_before_broadcast(t, led, 1764, R2, "2026-09-09T18:27:51")
+    assert v1["publish"] and v2["publish"]
+    assert v1["epoch"] != v2["epoch"], "the repeat did not bump"
+    assert v2["epochAction"] == m.BUMPED
+    assert len(led.forks()) == 0, led.forks()
+    # the same root in a later epoch is still publishable
+    v3 = m.guard_before_broadcast(t, led, 1764, R1, "2026-09-09T18:28:00")
+    assert v3["publish"] and v3["epoch"] != v1["epoch"]
+    # state survives a restart and keeps bumping afterwards
+    st = t.state(); t2 = m.EpochTracker.from_state(st)
+    assert t2.epoch == t.epoch
+    assert t2.assign(1800)["action"] == m.CONTINUE
+    assert t2.assign(50)["action"] == m.BUMPED
+    for bad in (-1, True, "x", None):
+        try:
+            m.EpochTracker().assign(bad); raise AssertionError("a bad height was accepted")
+        except m.EpochError:
+            pass
+    for bad in ("x", {"epochIndex": -3}, {"lastHeight": "x"}, {"epochIndex": True}):
+        try:
+            m.EpochTracker.from_state(bad); raise AssertionError("bad state accepted")
+        except m.EpochError:
+            pass
+    return ("the real 15-height sequence: 7 bumps, 8 epochs, 15 unique pairs and ZERO"
+            " collisions against 2 without it; a repeated height with a different root"
+            " bumps instead of forking, and the state survives a restart")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

@@ -816,6 +816,42 @@ def _committerwatch():
             " blob rather than the commit title")
 
 
+@check("clobberguard")
+def _clobberguard():
+    m = importlib.import_module("jumpper.clobberguard")
+    THEIRS = "class Commit: pass" + chr(10) + "def burst_risk(c): pass" + chr(10) + "def verify_claim(a,b,c): pass"
+    MINE = "def identity_report(c): pass" + chr(10) + "def watch(c): pass"
+    # the real incident: overwriting another identity file that exports names mine does not
+    v = m.assess("src/jumpper/committerwatch.py", MINE, THEIRS, "other-agent", "me")
+    assert v.decision == m.REFUSE, v.decision
+    assert "Commit" in v.lost_names and "burst_risk" in v.lost_names
+    assert "verify_claim" in v.lost_names
+    assert v.action == "merge-or-rename"
+    # forcing is permitted but recorded, never silent
+    f = m.assess("p", MINE, THEIRS, "other-agent", "me", force=True)
+    assert f.decision == m.MERGE_REQUIRED and f.forced is True
+    assert "FORCED" in f.reason
+    # your own work is yours to overwrite, including a hyphen variant of your own name
+    assert m.assess("p", MINE, MINE, "me", "me").decision == m.ALLOW
+    assert m.assess("p", MINE, MINE, "saos-dex agent", "saos-dex-agent").decision == m.ALLOW
+    # a new file destroys nothing, and a byte-identical write is a no-op
+    assert m.assess("p", MINE, None, None, "me").decision == m.ALLOW
+    assert m.assess("p", MINE, MINE, "other", "me").decision == m.ALLOW
+    assert m.assess("p", MINE, MINE, "other", "me").identical is True
+    # an anonymous overwrite cannot be investigated, so it is refused outright
+    for bad in ("", "   ", None):
+        try:
+            m.assess("p", MINE, THEIRS, "other", bad); raise AssertionError("anon allowed")
+        except m.ClobberError:
+            pass
+    mp = m.merge_plan("p", MINE, THEIRS)
+    assert mp["onlyInExisting"] == ["Commit", "burst_risk", "verify_claim"]
+    assert mp["onlyInProposed"] == ["identity_report", "watch"] and mp["inBoth"] == []
+    assert "rename is cheaper" in mp["verdict"]
+    return ("the real incident replayed: overwriting another identity file that exports"
+            " Commit, burst_risk and verify_claim is REFUSED and names what would be lost;"
+            " forcing records rather than hides, own work is allowed, anonymous is refused")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

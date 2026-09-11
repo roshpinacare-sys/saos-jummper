@@ -815,6 +815,46 @@ def _committerwatch():
             " fan-out by one identity, and verify_claim settling add/remove claims from the"
             " blob rather than the commit title")
 
+@check("committerwatch")
+def _committerwatch():
+    m = importlib.import_module("jumpper.committerwatch")
+    def C(name, files, add=0, dele=0, email=None, sha="s"):
+        return {"sha": sha, "name": name, "email": email, "date": "d", "msg": "m",
+                "files": files, "add": add, "dele": dele}
+    # near-duplicate identities collapse to one actor
+    r = m.identity_report([C("saos-dex-agent", []), C("saos-dex agent", []), C("SAOS-DEX_AGENT", [])])
+    assert r["distinctNames"] == 3 and r["effectiveIdentities"] == 1, r
+    # contention is the only signal that predicts an overwrite
+    assert m.file_contention([C("a", ["x.ts"]), C("b", ["x.ts"])])["contestedFiles"] == 1
+    assert m.file_contention([C("saos-dex-agent", ["x.ts"]),
+                              C("saos-dex agent", ["x.ts"])])["contestedFiles"] == 0
+    # the real saos-dex sample: a broadcaster and an editor, no contention
+    REAL = [C("roshpinacare-sys", ["b.md"], add=44),
+            C("Z User", ["a","b","c","d","e","f","g","h","i"], add=118, dele=216, sha="85878717"),
+            C("Z User", ["j","k","l","m"], add=73, dele=37)]
+    w = m.watch(REAL)
+    assert w["severity"] == "medium", w["severity"]
+    assert w["contention"]["contestedFiles"] == 0
+    assert w["roles"]["broadcasters"] == ["roshpinacare-sys"]
+    assert w["roles"]["editors"] == ["Z User"]
+    assert w["roles"]["identities"]["Z User"]["maxFilesPerCommit"] == 9
+    # a large net deletion is flagged for a human, not judged
+    d = m.deletion_risk(REAL)
+    assert d["count"] == 1 and d["commits"][0]["net"] == -98
+    assert "human must decide" in d["verdict"]
+    # contention raises severity to high
+    assert m.watch(REAL + [C("roshpinacare-sys", ["a"])])["severity"] == "high"
+    # a lone append-only broadcaster is low
+    assert m.watch([C("bot", ["log%d.md" % i], add=10) for i in range(4)])["severity"] == "low"
+    for bad in ("x", {}):
+        try:
+            m.watch(bad); raise AssertionError("bad input accepted")
+        except m.CommitterWatchError:
+            pass
+    return ("near-duplicate identities collapse, contention is measured per file not"
+            " per identity, and the real saos-dex sample reads medium with zero of 14"
+            " files contested - not the critical first reported")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

@@ -725,6 +725,51 @@ def _xlock():
     return ("four real self-transfer memos reconcile to 8 findings (4 critical, 3 high)"
             " while a balanced two-party protocol reconciles clean")
 
+@check("patchwatch")
+def _patchwatch():
+    m = importlib.import_module("jumpper.patchwatch")
+    assert len(m.FIXES) == 12, len(m.FIXES)
+    assert len({f.fid for f in m.FIXES}) == 12
+    # a file that was never supplied is indeterminate, never a pass
+    r = m.check_fix(m.FIXES[0], None)
+    assert r.status == m.INDETERMINATE, r.status
+    assert r.status != m.PRESENT
+    r = m.check_fix(m.FIXES[0], "   ")
+    assert r.status == m.INDETERMINATE
+    # POSTING authority present, ACTIVE-only absent
+    good = "const op = { required_auths: [], required_posting_auths: auth === X ? [a] : [] };"
+    bad = "const op = { required_auths: [account], required_posting_auths: [] };"
+    f2 = [f for f in m.FIXES if f.fid == "P-02"][0]
+    assert m.check_fix(f2, good).status == m.PRESENT
+    assert m.check_fix(f2, bad).status == m.ABSENT
+    # searchTransactionHistory both ways
+    f3 = [f for f in m.FIXES if f.fid == "P-03"][0]
+    assert m.check_fix(f3, "x searchTransactionHistory: true y").status == m.PRESENT
+    assert m.check_fix(f3, "x searchTransactionHistory: false y").status == m.ABSENT
+    assert m.check_fix(f3, "no marker here at all").status == m.INDETERMINATE
+    # a raising detector is indeterminate, not green
+    class Boom:
+        fid = "P-99"; title = "x"; repo = "r"; path = "p"; severity = "high"; why = "y"
+        present_rx = None; absent_rx = None; requires = None
+        def detect(self, s):
+            raise RuntimeError("boom")
+    assert m.check_fix(Boom(), "source").status == m.INDETERMINATE
+    # watch() aggregates and names the open criticals
+    w = m.watch({})
+    assert w["total"] == 12 and w["present"] == 0
+    assert w["indeterminate"] == 12
+    assert "P-01" in w["openCritical"] and "P-12" in w["openCritical"]
+    assert "indeterminate" in w["verdict"]
+    w2 = m.watch({}, only=["P-03"])
+    assert w2["total"] == 1
+    try:
+        m.watch("not-a-dict"); raise AssertionError("bad sources accepted")
+    except m.PatchWatchError:
+        pass
+    return ("12 fixes tracked across five repos; a missing file, an empty file and a"
+            " raising detector are all indeterminate rather than green, and watch()"
+            " names the open criticals")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

@@ -230,7 +230,15 @@ routes are the other kernel subsystems not yet searched for citations
 ## UNKNOWN
 
 - whether §1 existed and what it covered
-- §2.C entirely - no file cites it, and no module names it
+- ~~§2.C entirely~~ **RECOVERED IN A LATER PASS.** `risk-intelligence.ts` cites
+  `§2.C-8` for the monotonic `maxApproval()` join that makes `effectiveApprovalClass`
+  able to escalate above the static floor but never below it. So §2.C exists and item
+  8 is the monotonic approval join. Given that §2.A is federation, §2.B is selective
+  disclosure and §2.D is witnesses, §2.C is most plausibly the risk-assessment section
+  - consistent with `risk-intelligence.ts`, `contextual-risk.ts`, `risk-drift.ts` and
+  `actor-baseline.ts` all existing and none citing another section. **That last step is
+  an inference; the established fact is narrower: §2.C exists and item 8 is the
+  monotonic join.** Items 1 through 7 and 9 onward remain unknown
 - §2.D items 1 through 11
 - whether §3 or later sections existed
 - whether the roadmap ever called for anchoring log heads to a public chain. This

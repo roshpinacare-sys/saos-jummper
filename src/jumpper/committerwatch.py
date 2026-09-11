@@ -50,6 +50,26 @@ class Commit:
     files: Tuple[str, ...]
     repo: str = ""
 
+    @classmethod
+    def from_api(cls, raw: dict, repo: str = "") -> "Commit":
+        """Build a Commit from a GitHub commits-API record.
+
+        A record with no sha is refused rather than defaulted: without a sha there
+        is no blob to read, and a commit that cannot be resolved to a blob cannot
+        be verified against its own message."""
+        if not isinstance(raw, dict):
+            raise CommitterWatchError("a commit record must be an object")
+        s = raw.get("sha")
+        if not s or not isinstance(s, str):
+            raise CommitterWatchError("a commit without a sha cannot be verified "
+                                      "against its blob")
+        c = raw.get("commit") if isinstance(raw.get("commit"), dict) else {}
+        a = c.get("author") if isinstance(c.get("author"), dict) else {}
+        return cls(sha=s, ident=str(a.get("name") or raw.get("author_name") or ""),
+                   when=str(a.get("date") or ""),
+                   msg=str((c.get("message") or "").splitlines()[0] if c.get("message") else ""),
+                   files=tuple(f.get("filename", "") for f in (raw.get("files") or [])),
+                   repo=repo)
 
 def _norm(name: str) -> str:
     """Collapse hyphen, space, underscore and case so near-duplicate identities are

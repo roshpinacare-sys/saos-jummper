@@ -22,6 +22,21 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 PRESENT = "present"
 ABSENT = "absent"
 INDETERMINATE = "indeterminate"
+WITHDRAWN = "withdrawn"
+
+# Recommendations this agent made and later retracted. They stay in the table so
+# the retraction is visible, but they are never counted as open. See
+# docs/RELAY-PATCH-2.md for why each was wrong.
+WITHDRAWN_FIXES = {
+    "P-07": ("withdrawing the recommendation to drop digest and at. at is set once "
+             "per job and shared across every chain, which is why the ETH and SOL "
+             "payloads are byte-identical - it is one of the six fields proven equal "
+             "between block 25929672 and slot 445225030. digest travels inside SealInfo "
+             "beside stateRoot and is part of the sealed commitment, so changing it "
+             "orphans every existing anchor. Removing either is a fork of the "
+             "commitment format, not a cleanup."),
+}
+
 
 class PatchWatchError(ValueError):
     pass
@@ -118,7 +133,7 @@ FIXES: List[Fix] = [
 # is how a checker starts reporting green on code that is not fixed.
 COMPOUND = {
     "P-04": lambda s: _has(r"432000", s) and _has(r"Math\.min\s*\(", s),
-    "P-08": lambda s: _has(r"network\s*:", s) and _has(r"endpoint", s),
+    "P-08": lambda s: _anchor_record_has(s, ("endpointHost", "network")),
     "P-10": lambda s: _has(r"record\.source", s) and _has(r"record\.occurredAt", s),
     "P-11": lambda s: _has(r"xlock.{0,40}ref", s),
 }
@@ -127,8 +142,43 @@ APPLIES = {
     "P-10": r"computeHash", "P-11": r"xlock",
 }
 
+
+def _interface_body(src: str, name: str):
+    """Brace-matched body of a TypeScript interface, or None if absent.
+
+    Scoping matters. endpointHost is present on RelayChainState but NOT on
+    AnchorRecord, and searching the whole file reports the fix as landed when the
+    record that history is actually read from still lacks it. This is the same
+    class of error as R-05, which matched the word threshold anywhere in a file
+    instead of inside the function that reconstructs."""
+    i = src.find("interface " + name)
+    if i < 0:
+        return None
+    b = src.find("{", i)
+    if b < 0:
+        return None
+    depth = 0
+    for j in range(b, len(src)):
+        ch = src[j]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return src[b:j + 1]
+    return None
+
+
+def _anchor_record_has(src: str, fields):
+    body = _interface_body(src, "AnchorRecord")
+    if body is None:
+        return None
+    return all(_has(r"\b" + re.escape(f) + r"\??\s*:", body) for f in fields)
+
 def check_fix(fix: Fix, source: Optional[str]) -> FixResult:
     """Evaluate one fix. A missing or empty file is INDETERMINATE, never a pass."""
+    if fix.fid in WITHDRAWN_FIXES:
+        return FixResult(fix, WITHDRAWN, WITHDRAWN_FIXES[fix.fid])
     if source is None:
         return FixResult(fix, INDETERMINATE, "file not supplied; cannot decide")
     if not source.strip():
@@ -164,13 +214,14 @@ def watch(sources: Dict[str, str], only: Optional[Sequence[str]] = None) -> Dict
         if only and fix.fid not in only:
             continue
         out.append(check_fix(fix, sources.get(fix.repo + "/" + fix.path)))
-    counts = {PRESENT: 0, ABSENT: 0, INDETERMINATE: 0}
+    counts = {PRESENT: 0, ABSENT: 0, INDETERMINATE: 0, WITHDRAWN: 0}
     for r in out:
         counts[r.status] = counts.get(r.status, 0) + 1
     open_crit = [r.fix.fid for r in out if r.status != PRESENT and r.fix.severity == "critical"]
     return {"results": [r.as_dict() for r in out], "total": len(out),
             "present": counts[PRESENT], "absent": counts[ABSENT],
-            "indeterminate": counts[INDETERMINATE], "openCritical": open_crit,
+            "indeterminate": counts[INDETERMINATE], "withdrawn": counts[WITHDRAWN],
+            "openCritical": open_crit,
             "verdict": ("all checks present" if counts[ABSENT] == 0 and counts[INDETERMINATE] == 0
                         else "%d present, %d absent, %d indeterminate; open critical: %s"
                         % (counts[PRESENT], counts[ABSENT], counts[INDETERMINATE], open_crit or "none"))}

@@ -97,10 +97,11 @@ class TestReconciliationOfTheRealLedger(unittest.TestCase):
         self.assertEqual(sorted(f["indices"]), [49621, 49697])
         self.assertIn("0.050", f["amounts"])
 
-    def test_the_foreign_txid_is_flagged_as_graphene_format(self):
-        f = [x for x in rec()["findings"] if x["kind"] == "unlock-cites-foreign-txid"][0]
+    def test_the_unresolved_citation_is_flagged_and_says_what_it_cannot_decide(self):
+        f = [x for x in rec()["findings"] if x["kind"] == "unlock-citation-unresolved"][0]
         self.assertTrue(f["isGrapheneFormat"])
-        self.assertIn("cannot be followed", f["detail"])
+        self.assertIn("no model of the protocol", f["detail"])
+        self.assertFalse(f["resolvesWithinHistory"])
 
     def test_the_amount_mismatch_is_reconciled_exactly(self):
         r = rec()
@@ -122,7 +123,7 @@ class TestTheCheckerDiscriminates(unittest.TestCase):
 
     def test_an_unlock_citing_its_own_lock_txid_is_not_foreign(self):
         r = XL.reconcile(XL.parse_history(CLEAN))
-        self.assertNotIn("unlock-cites-foreign-txid", [f["kind"] for f in r["findings"]])
+        self.assertNotIn("unlock-citation-unresolved", [f["kind"] for f in r["findings"]])
 
     def test_an_empty_ledger_reconciles(self):
         self.assertEqual(XL.reconcile([])["verdict"], "RECONCILED")

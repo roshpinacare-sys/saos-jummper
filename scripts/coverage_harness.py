@@ -757,9 +757,28 @@ def _patchwatch():
     # watch() aggregates and names the open criticals
     w = m.watch({})
     assert w["total"] == 12 and w["present"] == 0
-    assert w["indeterminate"] == 12
+    # P-07 was withdrawn by this agent, so it is neither present, absent nor
+    # indeterminate - it stays in the table so the retraction is visible, and is
+    # never counted as open. That leaves 11 indeterminate when no source is given.
+    assert w["withdrawn"] == 1, w
+    assert w["indeterminate"] == 11, w["indeterminate"]
+    f7 = [f for f in m.FIXES if f.fid == "P-07"][0]
+    r7 = m.check_fix(f7, "digest: job.info.digest, at: job.at")
+    assert r7.status == m.WITHDRAWN, r7.status
+    assert "cross-chain equality" in r7.evidence
     assert "P-01" in w["openCritical"] and "P-12" in w["openCritical"]
+    assert "P-07" not in w["openCritical"]
     assert "indeterminate" in w["verdict"]
+    # P-08 is scoped to the AnchorRecord body: endpointHost on RelayChainState
+    # alone must NOT satisfy it, which is the error a whole-file search made
+    f8 = [f for f in m.FIXES if f.fid == "P-08"][0]
+    ONLY_STATE = ("interface AnchorRecord { chain: string; height: number; }" + chr(10)
+                  + "interface RelayChainState { endpointHost: string | null; network: string; }")
+    assert m.check_fix(f8, ONLY_STATE).status == m.ABSENT
+    BOTH = ("interface AnchorRecord { chain: string; endpointHost?: string;"
+            " network?: string; }")
+    assert m.check_fix(f8, BOTH).status == m.PRESENT
+    assert m.check_fix(f8, "no interface here").status == m.INDETERMINATE
     w2 = m.watch({}, only=["P-03"])
     assert w2["total"] == 1
     try:
@@ -767,8 +786,10 @@ def _patchwatch():
     except m.PatchWatchError:
         pass
     return ("12 fixes tracked across five repos; a missing file, an empty file and a"
-            " raising detector are all indeterminate rather than green, and watch()"
-            " names the open criticals")
+            " raising detector are all indeterminate rather than green, watch() names"
+            " the open criticals, a withdrawn recommendation is never counted as open,"
+            " and P-08 is scoped to the AnchorRecord body so endpointHost on"
+            " RelayChainState alone does not satisfy it")
 
 @check("committerwatch")
 def _committerwatch():

@@ -852,6 +852,64 @@ def _clobberguard():
             " Commit, burst_risk and verify_claim is REFUSED and names what would be lost;"
             " forcing records rather than hides, own work is allowed, anonymous is refused")
 
+@check("safewrite")
+def _safewrite():
+    m = importlib.import_module("jumpper.safewrite")
+    cg = importlib.import_module("jumpper.clobberguard")
+    THEIRS = "class Commit: pass" + chr(10) + "def burst_risk(c): pass" + chr(10) + "def verify_claim(a,b,c): pass"
+    MINE = "def identity_report(c): pass" + chr(10) + "def watch(c): pass"
+    EX = {"exists": True, "content": THEIRS, "author": "other-agent", "sha": "abc"}
+    NEWF = {"exists": False, "content": None, "author": None, "sha": None}
+    calls = []
+    class R:
+        status_code = 201
+        text = "ok"
+    def put(path, body):
+        calls.append((path, sorted(body)))
+        return R()
+    log = m.WriteLog()
+    r = m.write("p.py", MINE, EX, "me", put, log, repo="saos-jummper")
+    assert r["wrote"] is False and calls == [], calls
+    assert sorted(r["wouldHaveDestroyed"]) == ["Commit", "burst_risk", "verify_claim"]
+    assert r["suggestedAction"] == "merge-or-rename"
+    assert r["mergePlan"]["inBoth"] == []
+    assert r["reason"] and "other-agent" in r["reason"]
+    r2 = m.write("p.py", MINE, EX, "me", put, log, force=True)
+    assert r2["wrote"] is True and len(calls) == 1
+    assert r2["verdict"]["forced"] is True
+    assert r2["verdict"]["decision"] == cg.MERGE_REQUIRED
+    s1 = log.summary()
+    assert s1["forced"] == 1 and s1["refused"] == 1
+    assert s1["namesLostByForce"] == ["Commit", "burst_risk", "verify_claim"]
+    log2 = m.WriteLog()
+    del calls[:]
+    assert m.write("n.py", MINE, NEWF, "me", put, log2)["wrote"] is True
+    OWN = {"exists": True, "content": MINE, "author": "me", "sha": "s"}
+    assert m.write("o.py", MINE, OWN, "me", put, log2)["wrote"] is True
+    SAME = {"exists": True, "content": THEIRS, "author": "other", "sha": "s"}
+    assert m.write("i.py", THEIRS, SAME, "me", put, log2)["wrote"] is True
+    assert len(calls) == 3 and log2.summary()["refused"] == 0
+    assert "sha" in calls[1][1]
+    log3 = m.WriteLog()
+    del calls[:]
+    b = m.write_many([{"path": "a.py", "content": MINE, "existing": NEWF},
+                      {"path": "b.py", "content": MINE, "existing": EX}], "me", put, log3)
+    assert b["wrote"] == ["a.py"] and b["stoppedAt"] == "b.py"
+    assert len(calls) == 1
+    def boom(path, body):
+        raise RuntimeError("network down")
+    log4 = m.WriteLog()
+    try:
+        m.write("z.py", MINE, NEWF, "me", boom, log4)
+        raise AssertionError("a failed write was swallowed")
+    except m.SafeWriteError:
+        pass
+    assert log4.summary()["total"] == 1 and log4.summary()["wrote"] == 0
+    return ("the real incident replayed through the wired guard: refused with nothing"
+            " written and the three lost names reported; forcing records what it cost;"
+            " allowed paths still write carrying the sha; a batch stops at the first"
+            " refusal; a transport failure after an allowed decision is raised")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

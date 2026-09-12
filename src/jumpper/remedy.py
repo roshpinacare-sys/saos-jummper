@@ -30,7 +30,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
 
-from .graphene import b64u
+from .graphene import b64u, unb64u
 from .authority import ATTESTATION, build_custom_json_by_policy
 from .protocol import HIVE_CUSTOM_JSON_DATA_MAX_LENGTH
 
@@ -186,3 +186,76 @@ def apply_corrections(anchors: Sequence[Dict[str, Any]],
     return {"heights": len(heights), "resolved": resolved, "ambiguous": ambiguous,
             "unrecorded": unrecorded, "resolvedCount": len(resolved),
             "ambiguousCount": amb, "unrecordedCount": unrec, "verdict": verdict}
+
+
+def decode_corrections(payload: str, sep: str = ",") -> Dict[str, Any]:
+    """Decode a correction payload back into structured records.
+
+    Format: version|logId|status;height:rootCount:root1B64u+root2B64u;...
+    Roots are base64url of the 32-byte digest, so 43 characters rather than 64 hex
+    - which is what lets all eight forked heights and their seventeen roots fit in
+    831 bytes of an 8,192-byte free budget.
+
+    Every field is validated on the way in, and a payload that does not parse is an
+    error rather than a partial result: a verifier that silently dropped a height
+    would report fewer contradictions than the chain contains, which is worse than
+    refusing to answer."""
+    if not isinstance(payload, str) or not payload.strip():
+        raise RemedyError("payload must be a non-empty string")
+    parts = payload.split("|")
+    if len(parts) != 4:
+        raise RemedyError("payload must be version|logId|status|entries, got %d parts"
+                        % len(parts))
+    try:
+        version = int(parts[0])
+    except ValueError as exc:
+        raise RemedyError("version must be an integer") from exc
+    if version != CORRECTION_VERSION:
+        raise RemedyError("unsupported correction payload version %d; this decoder "
+                          "handles %d" % (version, CORRECTION_VERSION))
+    log_id = parts[1]
+    if not log_id:
+        raise RemedyError("logId is empty")
+    status = parts[2]
+    if status not in STATUSES:
+        raise RemedyError("status %r is not one of %r" % (status, STATUSES))
+    if not parts[3]:
+        raise RemedyError("payload carries no entries")
+    out: List[Correction] = []
+    for chunk in parts[3].split(sep):
+        fields = chunk.split(":")
+        if len(fields) != 3:
+            raise RemedyError("entry %r must be height:rootCount:roots" % chunk[:40])
+        try:
+            height = int(fields[0]); count = int(fields[1])
+        except ValueError as exc:
+            raise RemedyError("height and rootCount must be integers in %r"
+                                % chunk[:40]) from exc
+        if height < 0 or count < 1:
+            raise RemedyError("height must be >= 0 and rootCount >= 1 in %r" % chunk[:40])
+        roots: List[str] = []
+        for enc in fields[2].split("+"):
+            try:
+                raw = unb64u(enc)
+            except Exception as exc:
+                raise RemedyError("malformed base64url root in entry %r: %s"
+                                  % (chunk[:40], exc)) from exc
+            if len(raw) != 64 or any(c not in "0123456789abcdef" for c in raw):
+                raise RemedyError("decoded root is not 64-char lowercase hex in entry %r"
+                                  % chunk[:40])
+            roots.append(raw)
+        if len(roots) != count:
+            raise RemedyError("entry for height %d declares %d roots but carries %d"
+                              % (height, count, len(roots)))
+        if status == AMBIGUOUS and len(set(roots)) < 2:
+            raise RemedyError("an AMBIGUOUS entry for height %d carries fewer than "
+                              "two distinct roots" % height)
+        out.append(Correction(log_id=log_id, height=height, status=status,
+                              distinct_roots=count, roots=roots))
+    if not out:
+        raise RemedyError("payload decoded to zero corrections")
+    return {"version": version, "logId": log_id, "status": status,
+            "corrections": out, "count": len(out),
+            "heights": sorted(c.height for c in out),
+            "totalRoots": sum(len(c.roots) for c in out),
+            "payloadBytes": len(payload.encode("utf-8"))}

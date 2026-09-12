@@ -1,0 +1,146 @@
+{
+ "operation": [
+  "custom_json",
+  {
+   "required_auths": [],
+   "required_posting_auths": [
+    "headcorner"
+   ],
+   "id": "saos-height-correction.v1",
+   "json": "1|saos-dex.anchor.v1|AMBIGUOUS|12:2:zWy2kIMmJeLhIn1ltoRAue1plwZTSeAO4XYJdyjC-eM+PejG5Nf0AG5Ze-eC9bNw33_64Cz6bTvsMKC7SinDanI,552:3:IPSmL005StyNNUv1az1q_kRUTcgr7zBCzYwGVJgDx4E+tCZwOVXcCFA_La1_KvvWX1A1YDWJrxaQqh0AtPqa3oA+ZHrGZdzrazKRDaLz4f-JQcu_7GRShb_W0jcBLOZaF7k,1224:2:RhCaFlk9AgzvRwmg-EvFfBNdPO_wtrgRZUCK6R-3ueU+_p9lgRiM-bFtJCPd11KEJYilvgshQAQjqf4wGwXPGNY,1392:2:iR1zSaE9Plo-T1wNSURb1IS-AIMcWtMRMfs70TjbGFc+xyoKT51hylYlz3JN0hm-DG479aUkpJg8Ov4e_9xmSWM,1416:2:pUpRx1JNq8QdCdhZ9dZCqoNpR0gu8wRnrvblo_ZkFtA+2T5aUNXnMcqBVVtr_F39f7wH6bbiE1fKMw4n3Z0-oF0,1476:2:9hoEbt8Vo3xOX5ZsXlz8KrwvWlmIVCxR2Vlfqao8nAE+4mokkH6flfTKfPWjz0h3zmDUHUwx1AXH0P2IpOs08XY,1668:2:dLKYZxlYmPZpHOMxy9vNP-017Yp04cxj-29Pos5nZbU+43Xg9df-mMaepyDQ-W6fshRubDUrh-iw-aTxzrU9ljE,1764:2:1yILXp7MlT5-jd8LaCt-FThOjsC8Rrsi4UXXS8up8ts+hK4KCgjvL0S-zJnkD5mV5v6C2ZMe1uJBKyPKmZ-GuQ0"
+  }
+ ],
+ "plan": {
+  "account": "headcorner",
+  "anchorId": "saos-height-correction.v1",
+  "authority": "posting",
+  "fee": 0,
+  "corrections": 8,
+  "payloadBytes": 831,
+  "budgetBytes": 8192,
+  "budgetUsedPct": 10.14,
+  "fitsInOneOperation": true,
+  "signing": "external-only",
+  "broadcast": "never-performed-here",
+  "retracts": false,
+  "note": "the original anchors stay readable; this record sits beside them"
+ },
+ "corrections": [
+  {
+   "logId": "saos-dex.anchor.v1",
+   "epoch": null,
+   "height": 1416,
+   "status": "AMBIGUOUS",
+   "distinctRoots": 2,
+   "roots": [
+    "a54a51c7524dabc41d09d859f5d642aa836947482ef30467aef6e5a3f66416d0",
+    "d93e5a50d5e731ca81555b6bfc5dfd7fbc07e9b6e21357ca330e27dd9d3ea05d"
+   ],
+   "canonicalRoot": null,
+   "firstCommittedAt": "2026-09-07T14:42:57",
+   "lastCommittedAt": "2026-09-09T18:03:48"
+  },
+  {
+   "logId": "saos-dex.anchor.v1",
+   "epoch": null,
+   "height": 12,
+   "status": "AMBIGUOUS",
+   "distinctRoots": 2,
+   "roots": [
+    "cd6cb690832625e2e1227d65b68440b9ed6997065349e00ee176097728c2f9e3",
+    "3de8c6e4d7f4006e597be782f5b370df7ffae02cfa6d3bec30a0bb4a29c36a72"
+   ],
+   "canonicalRoot": null,
+   "firstCommittedAt": "2026-09-07T22:53:03",
+   "lastCommittedAt": "2026-09-09T22:10:06"
+  },
+  {
+   "logId": "saos-dex.anchor.v1",
+   "epoch": null,
+   "height": 1224,
+   "status": "AMBIGUOUS",
+   "distinctRoots": 2,
+   "roots": [
+    "46109a16593d020cef4709a0f84bc57c135d3ceff0b6b81165408ae91fb7b9e5",
+    "fe9f6581188cf9b16d2423ddd752842588a5be0b21400423a9fe301b05cf18d6"
+   ],
+   "canonicalRoot": null,
+   "firstCommittedAt": "2026-09-07T23:58:54",
+   "lastCommittedAt": "2026-09-09T17:54:12"
+  },
+  {
+   "logId": "saos-dex.anchor.v1",
+   "epoch": null,
+   "height": 1392,
+   "status": "AMBIGUOUS",
+   "distinctRoots": 2,
+   "roots": [
+    "891d7349a13d3e5a3e4f5c0d49445bd484be00831c5ad31131fb3bd138db1857",
+    "c72a0a4f9d61ca5625cf724dd219be0c6e3bf5a524a4983c3afe1effdc664963"
+   ],
+   "canonicalRoot": null,
+   "firstCommittedAt": "2026-09-08T03:35:09",
+   "lastCommittedAt": "2026-09-09T18:02:36"
+  },
+  {
+   "logId": "saos-dex.anchor.v1",
+   "epoch": null,
+   "height": 1476,
+   "status": "AMBIGUOUS",
+   "distinctRoots": 2,
+   "roots": [
+    "f61a046edf15a37c4e5f966c5e5cfc2abc2f5a5988542c51d9595fa9aa3c9c01",
+    "e26a24907e9f95f4ca7cf5a3cf4877ce60d41d4c31d405c7d0fd88a4eb34f176"
+   ],
+   "canonicalRoot": null,
+   "firstCommittedAt": "2026-09-09T18:06:48",
+   "lastCommittedAt": "2026-09-09T23:24:36"
+  },
+  {
+   "logId": "saos-dex.anchor.v1",
+   "epoch": null,
+   "height": 552,
+   "status": "AMBIGUOUS",
+   "distinctRoots": 3,
+   "roots": [
+    "20f4a62f4d394adc8d354bf56b3d6afe44544dc82bef3042cd8c06549803c781",
+    "b426703955dc08503f2dad7f2afbd65f5035603589af1690aa1d00b4fa9ade80",
+    "647ac665dceb6b32910da2f3e1ff8941cbbfec645285bfd6d237012ce65a17b9"
+   ],
+   "canonicalRoot": null,
+   "firstCommittedAt": "2026-09-07T21:57:33",
+   "lastCommittedAt": "2026-09-07T22:04:36"
+  },
+  {
+   "logId": "saos-dex.anchor.v1",
+   "epoch": null,
+   "height": 1668,
+   "status": "AMBIGUOUS",
+   "distinctRoots": 2,
+   "roots": [
+    "74b29867195898f6691ce331cbdbcd3fed35ed8a74e1cc63fb6f4fa2ce6765b5",
+    "e375e0f5d7fe98c69ea720d0f96e9fb2146e6c352b87e8b0f9a4f1ceb53d9631"
+   ],
+   "canonicalRoot": null,
+   "firstCommittedAt": "2026-09-09T18:19:18",
+   "lastCommittedAt": "2026-09-09T18:22:36"
+  },
+  {
+   "logId": "saos-dex.anchor.v1",
+   "epoch": null,
+   "height": 1764,
+   "status": "AMBIGUOUS",
+   "distinctRoots": 2,
+   "roots": [
+    "d7220b5e9ecc953e7e8ddf0b682b7e15384e8ec0bc46bb22e145d74bcba9f2db",
+    "84ae0a0a08ef2f44becc99e40f9995e6fe82d9931ed6e2412b23ca999f86b90d"
+   ],
+   "canonicalRoot": null,
+   "firstCommittedAt": "2026-09-09T18:27:21",
+   "lastCommittedAt": "2026-09-09T18:27:51"
+  }
+ ],
+ "source": "forks.json - 8 heights from 173 real saos-dex.anchor.v1 anchors on HIVE mainnet",
+ "generatedFrom": "src/jumpper/remedy.py",
+ "note": "Sign with the POSTING key of headcorner and broadcast as a single custom_json. Zero fee. This record retracts nothing - the eight original anchors stay readable, and no canonical root is declared because two signed commitments at one height are both real and which one the state machine produced is a fact about the operator's process, not about the ledger."
+}

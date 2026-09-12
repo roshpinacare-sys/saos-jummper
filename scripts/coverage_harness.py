@@ -714,7 +714,7 @@ def _xlock():
     assert kinds.count("self-transfer") == 4
     fmt = [f for f in r["findings"] if f["kind"] == "inconsistent-format"]
     assert len(fmt) == 1 and fmt[0]["action"] == "xlock" and fmt[0]["fieldCounts"] == [4, 5]
-    assert "lock-without-reference" in kinds and "unlock-cites-foreign-txid" in kinds
+    assert "lock-without-reference" in kinds and "unlock-citation-unresolved" in kinds
     assert "amount-mismatch" in kinds
     # a balanced two-party protocol must reconcile, or the checker is just noise
     CLEAN = [T(1, "1.000 HIVE", "saos:xlock:PHIVE:1.000:r1", "aa", "alice", "escrow"),

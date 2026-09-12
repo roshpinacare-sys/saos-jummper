@@ -173,12 +173,23 @@ def reconcile(ops: Sequence[MemoOp]) -> Dict[str, Any]:
                 % (o.index, o.ref_id), index=o.index, refId=o.ref_id)
         cited = o.cited_txid
         if cited and cited not in lock_txids:
-            add("unlock-cites-foreign-txid", "medium",
-                "unlock #%d cites txid %s which is not any lock transaction in this "
-                "history; it presumably belongs to another chain, but the memo does "
-                "not say which, so it cannot be followed" % (o.index, cited[:16]),
+            # Reported as UNRESOLVED, not as foreign or unfollowable. The producer
+            # roundtrip.cjs cites st.s4.txid - the BURN on the other chain - because
+            # the protocol unlocks against the burn that proves the wrapped asset was
+            # destroyed, not against the lock that created it. Calling that "foreign"
+            # was a false positive: this module has no model of a multi-chain
+            # roundtrip, so it can only say the citation does not resolve within the
+            # history it was given. See docs/XLOCK-AUDIT-CORRECTION.md.
+            add("unlock-citation-unresolved", "medium",
+                "unlock #%d cites txid %s which does not resolve to any lock in the "
+                "supplied history. This module has no model of the protocol, so it "
+                "cannot say whether the citation points at a burn on another chain "
+                "(which is what roundtrip.cjs does) or at nothing. The memo names no "
+                "chain, so a reader cannot resolve it either"
+                % (o.index, cited[:16]),
                 index=o.index, citedTxid=cited,
-                isGrapheneFormat=bool(GRAPHENE_TXID.match(cited)))
+                isGrapheneFormat=bool(GRAPHENE_TXID.match(cited)),
+                resolvesWithinHistory=False)
 
     by_ref: Dict[str, Dict[str, Decimal]] = {}
     for o in list(locks) + list(unlocks):

@@ -995,6 +995,66 @@ def _ghwrite():
             " a write by a different identity is refused with nothing PUT, and the"
             " same identity is allowed carrying the sha for concurrent-write detection")
 
+@check("secretsweep")
+def _secretsweep():
+    m = importlib.import_module("jumpper.secretsweep")
+    # the shape detector on the real filenames in this estate
+    for yes in ["steem/agent/vault/KEYS-BACKUP-2026-09-09.tar.enc",
+                "steem/agent/vault/KEYS-ZIP-2026-09-10.zip.enc",
+                "steem/agent/fleet_keys.enc"]:
+        assert m.is_ciphertext_shape(yes) is True, yes
+    for no in ["steem/agent/recovery-meta.json", "src/lib/dex/relay.ts",
+               "docs/STATUS.md", "agent/vault/KEYS-ZIP-README-HE.md"]:
+        assert m.is_ciphertext_shape(no) is False, no
+    # credential_fields reports NAMES AND LENGTHS, never values
+    META = (chr(123) + chr(34) + "format" + chr(34) + ":" + chr(34) + "X" + chr(34) + ","
+            + chr(34) + "keysZipPass" + chr(34) + ":" + chr(34) + "A" * 32 + chr(34) + ","
+            + chr(34) + "keysZipSha256" + chr(34) + ":" + chr(34) + "b" * 64 + chr(34) + ","
+            + chr(34) + "keysBackupPass" + chr(34) + ":" + chr(34) + "C" * 32 + chr(34) + chr(125))
+    cf = m.credential_fields(META)
+    assert cf == [("keysZipPass", 32), ("keysBackupPass", 32)], cf
+    # a sha256 field is NOT a secret - flagging it is the false positive that
+    # makes a sweeper get ignored
+    assert all(n != "keysZipSha256" for n, _ in cf)
+    # short literals are not credentials
+    assert m.credential_fields(chr(34) + "pass" + chr(34) + ": " + chr(34) + "abc" + chr(34)) == []
+    FILES = [{"path": "agent/vault/KEYS-BACKUP-2026-09-09.tar.enc", "size": 145760},
+             {"path": "agent/recovery-meta.json", "size": 865}]
+    # with text: the pattern is found - ciphertext beside its own key
+    r = m.sweep(FILES, repo="steem", texts={"agent/recovery-meta.json": META})
+    assert r["critical"] == 4, r["critical"]
+    assert r["ciphertextCount"] == 1 and r["textSupplied"] == 1
+    kinds = sorted({f["kind"] for f in r["findings"]})
+    assert kinds == ["ciphertext-beside-its-key", "plaintext-credential"], kinds
+    # two credentials produce two beside-its-key findings, one per credential
+    assert sum(1 for f in r["findings"] if f["kind"] == "ciphertext-beside-its-key") == 2
+    # no finding ever carries a value - only a field name and a length
+    for f in r["findings"]:
+        assert "A" * 32 not in json.dumps(f), "a secret value leaked into a finding"
+    # WITHOUT text the ciphertext side is unassessed, never reported clean
+    r2 = m.sweep(FILES, repo="steem")
+    assert r2["critical"] == 0 and r2["high"] == 1
+    assert "unassessed" in r2["verdict"], r2["verdict"]
+    assert r2["textSupplied"] == 0
+    # a repository with neither ciphertext nor credentials is clean, not unassessed
+    r3 = m.sweep([{"path": "a.ts", "size": 10}], repo="clean", texts={"a.ts": "x = 1"})
+    assert r3["critical"] == 0 and r3["high"] == 0
+    # sweep_many sorts worst first and totals
+    r4 = m.sweep_many({"clean": [{"path": "a.ts", "size": 10}], "steem": FILES},
+                      texts={"steem": {"agent/recovery-meta.json": META}})
+    assert r4["repoCount"] == 2 and r4["totalCritical"] == 4
+    assert [x["repo"] for x in r4["repos"]] == ["steem", "clean"]
+    assert "4 critical" in r4["verdict"]
+    for bad in ("x", None, 42):
+        try:
+            m.sweep(bad); raise AssertionError("bad files accepted")
+        except m.SecretSweepError:
+            pass
+    return ("the real pattern detected: KEYS-BACKUP.tar.enc beside recovery-meta.json"
+            " yields 4 critical findings, sha256 and salt fields are not flagged as"
+            " secrets, no finding carries a value, and a sweep without file text"
+            " reports unassessed rather than clean")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

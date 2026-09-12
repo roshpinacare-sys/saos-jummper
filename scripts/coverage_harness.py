@@ -765,7 +765,9 @@ def _patchwatch():
     f7 = [f for f in m.FIXES if f.fid == "P-07"][0]
     r7 = m.check_fix(f7, "digest: job.info.digest, at: job.at")
     assert r7.status == m.WITHDRAWN, r7.status
-    assert "cross-chain equality" in r7.evidence
+    # the evidence is the withdrawal text itself, which names the property at risk
+    assert "byte-identical" in r7.evidence, r7.evidence
+    assert "six fields" in r7.evidence
     assert "P-01" in w["openCritical"] and "P-12" in w["openCritical"]
     assert "P-07" not in w["openCritical"]
     assert "indeterminate" in w["verdict"]

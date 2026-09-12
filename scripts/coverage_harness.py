@@ -756,19 +756,27 @@ def _patchwatch():
     assert m.check_fix(Boom(), "source").status == m.INDETERMINATE
     # watch() aggregates and names the open criticals
     w = m.watch({})
-    assert w["total"] == 12 and w["present"] == 0
+    assert w["total"] == 12
+    # P-12's remedy IS the file not existing, so an unsupplied file is the pass for
+    # it and only for it. That is what ABSENT_IS_FIXED is for, and the verdict it
+    # returns says absence cannot distinguish removal from relocation.
+    assert "P-12" in m.ABSENT_IS_FIXED
+    assert m.check_fix([f for f in m.FIXES if f.fid == "P-12"][0], None).status == m.PRESENT
+    assert w["present"] == 1, w["present"]
     # P-07 was withdrawn by this agent, so it is neither present, absent nor
     # indeterminate - it stays in the table so the retraction is visible, and is
-    # never counted as open. That leaves 11 indeterminate when no source is given.
+    # never counted as open. That leaves 10 indeterminate when no source is given.
     assert w["withdrawn"] == 1, w
-    assert w["indeterminate"] == 11, w["indeterminate"]
+    assert w["indeterminate"] == 10, w["indeterminate"]
     f7 = [f for f in m.FIXES if f.fid == "P-07"][0]
     r7 = m.check_fix(f7, "digest: job.info.digest, at: job.at")
     assert r7.status == m.WITHDRAWN, r7.status
     # the evidence is the withdrawal text itself, which names the property at risk
     assert "byte-identical" in r7.evidence, r7.evidence
     assert "six fields" in r7.evidence
-    assert "P-01" in w["openCritical"] and "P-12" in w["openCritical"]
+    # P-12 is no longer an open critical once its file is confirmed absent; P-01
+    # still is, because an unsupplied relay.ts cannot be decided either way.
+    assert "P-01" in w["openCritical"] and "P-12" not in w["openCritical"]
     assert "P-07" not in w["openCritical"]
     assert "indeterminate" in w["verdict"]
     # P-08 is scoped to the AnchorRecord body: endpointHost on RelayChainState

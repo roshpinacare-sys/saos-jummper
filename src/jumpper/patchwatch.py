@@ -24,6 +24,17 @@ ABSENT = "absent"
 INDETERMINATE = "indeterminate"
 WITHDRAWN = "withdrawn"
 
+# Fixes whose remedy IS the file not existing. Absence is ambiguous - it can mean
+# removed, or moved to a path this checker does not know - so the verdict reports
+# the ambiguity rather than claiming a verified removal. The caller must confirm
+# removal, not relocation, before treating it as closed.
+ABSENT_IS_FIXED = {
+    "P-12": ("the file is absent at this path, which is the fix if it was removed. "
+             "Absence cannot distinguish removal from relocation, so confirm the path "
+             "did not move - and note that removal from HEAD does not remove the file "
+             "from git history, so the keys inside still need rotating."),
+}
+
 # Recommendations this agent made and later retracted. They stay in the table so
 # the retraction is visible, but they are never counted as open. See
 # docs/RELAY-PATCH-2.md for why each was wrong.
@@ -117,9 +128,12 @@ FIXES: List[Fix] = [
         'kernel/orchestrator/audit.ts', 'high',
         'computeHash binds 5 of 11 fields, so who/when/why can be rewritten and verifyChain still passes.',
         None, None),
-    Fix('P-11', 'xlock memos carry a mandatory reference id', 'saos-dex',
-        'src/lib/dex/relay.ts', 'medium',
-        'Two of three xlock ops carry no reference id, including the largest at 0.050 HIVE.',
+    Fix('P-11', 'xlock memos carry a mandatory reference id', 'steem',
+        'agent/wrapped.cjs', 'medium',
+        'The reference id is written at two of five memo sites and read at zero. Both '
+        'PHIVE lock sites omit it (the 0.001 and 0.050 HIVE referenceless locks on '
+        'chain), one of three WSBD sites omits it, and the two that include it use '
+        'Date.now().toString(36), a timestamp not an identifier. See PATCH-SPEC-P11.md.',
         None, None),
     Fix('P-12', 'vault passphrase out of the committed state file', 'saos-dex',
         'state/pool.json', 'critical',
@@ -135,7 +149,7 @@ COMPOUND = {
     "P-04": lambda s: _has(r"432000", s) and _has(r"Math\.min\s*\(", s),
     "P-08": lambda s: _anchor_record_has(s, ("endpointHost", "network")),
     "P-10": lambda s: _has(r"record\.source", s) and _has(r"record\.occurredAt", s),
-    "P-11": lambda s: _has(r"xlock.{0,40}ref", s),
+    "P-11": lambda s: _has(r"saos:xlock:1:", s),
 }
 APPLIES = {
     "P-04": r"current_mana", "P-08": r"interface AnchorRecord",
@@ -180,6 +194,8 @@ def check_fix(fix: Fix, source: Optional[str]) -> FixResult:
     if fix.fid in WITHDRAWN_FIXES:
         return FixResult(fix, WITHDRAWN, WITHDRAWN_FIXES[fix.fid])
     if source is None:
+        if fix.fid in ABSENT_IS_FIXED:
+            return FixResult(fix, PRESENT, ABSENT_IS_FIXED[fix.fid])
         return FixResult(fix, INDETERMINATE, "file not supplied; cannot decide")
     if not source.strip():
         return FixResult(fix, INDETERMINATE, "file is empty; cannot decide")

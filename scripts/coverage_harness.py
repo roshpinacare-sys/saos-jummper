@@ -910,6 +910,60 @@ def _safewrite():
             " allowed paths still write carrying the sha; a batch stops at the first"
             " refusal; a transport failure after an allowed decision is raised")
 
+@check("ghwrite")
+def _ghwrite():
+    m = importlib.import_module("jumpper.ghwrite")
+    sw = importlib.import_module("jumpper.safewrite")
+    # constructor validation - a backend with no token cannot authenticate
+    for bad in [("", "o", "r"), ("t", "", "r"), ("t", "o", "")]:
+        try:
+            m.GitHubBackend(*bad); raise AssertionError("bad backend accepted")
+        except m.GitHubBackendError:
+            pass
+    b = m.GitHubBackend("t", "o", "r")
+    assert b.branch == "main" and b.repo == "r"
+    # read() returns the shape safewrite expects, including the last author
+    META = {"_status": 200, "sha": "abc", "size": 3,
+            "content": __import__("base64").b64encode(b"x=1").decode()}
+    class FakeSession:
+        def __init__(self):
+            self.puts = []
+        def get(self, url, headers=None, params=None, timeout=None):
+            class R:
+                status_code = 200
+                def json(self_inner):
+                    if "/commits" in url:
+                        return [{"commit": {"author": {"name": "Z User"}}}]
+                    return dict(META)
+            return R()
+        def put(self, url, headers=None, json=None, timeout=None):
+            self.puts.append((url, json))
+            class R:
+                status_code = 201
+                text = "ok"
+            return R()
+    sess = FakeSession()
+    b2 = m.GitHubBackend("t", "o", "r", session=sess)
+    ex = b2.read("p.py")
+    assert ex["exists"] is True and ex["sha"] == "abc"
+    assert ex["content"] == "x=1", ex["content"]
+    assert ex["author"] == "Z User"
+    # the guard refuses a write by a different identity, and nothing is PUT
+    log = sw.WriteLog()
+    r = sw.write("p.py", "y=2", ex, "roshpinacare-sys", b2.put, log, repo="r")
+    assert r["wrote"] is False and sess.puts == [], sess.puts
+    assert r["suggestedAction"] == "merge-or-rename"
+    assert "Z User" in r["reason"]
+    # the same identity is allowed, and the sha rides along
+    r2 = sw.write("p.py", "y=2", dict(ex, author="roshpinacare-sys"), "roshpinacare-sys",
+                  b2.put, log, repo="r", message="m")
+    assert r2["wrote"] is True and len(sess.puts) == 1
+    assert sess.puts[0][1]["sha"] == "abc"
+    assert sess.puts[0][1]["branch"] == "main"
+    return ("read() returns content, sha and last author from one metadata call;"
+            " a write by a different identity is refused with nothing PUT, and the"
+            " same identity is allowed carrying the sha for concurrent-write detection")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

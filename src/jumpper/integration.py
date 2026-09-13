@@ -70,8 +70,18 @@ def run(account: str,
         signed_tree_heads: Sequence[Any] = (),
         witness_statements: Sequence[Dict[str, Any]] = (),
         federation_anchors: Sequence[Dict[str, Any]] = (),
+        audit_operations: Sequence[Any] = (),
         quorum_threshold: int = 2) -> Dict[str, Any]:
-    """Build and validate every operation the four bridges produce.
+    """Build and validate every operation all four bridges produce.
+
+    The audit-chain bridge (pipeline.py) is accepted as PRE-BUILT operations rather
+    than driven from here. Its Pipeline class owns claim hashing, Merkle batching,
+    height monotonicity and the budget guard, and re-implementing that sequence in a
+    second place is how two implementations drift apart. So the caller runs the
+    pipeline and hands the resulting operations in; this runner validates them
+    against the same constraints as the ones it builds itself, which is the part
+    that belongs here. An earlier version of this docstring claimed all four
+    bridges were driven from here. Three were. This says so and closes the fourth.
 
     Each artifact family is grouped the way its bridge requires it - one log per
     batch of tree heads, one log pair and one signer per batch of federation
@@ -83,7 +93,9 @@ def run(account: str,
     notes: List[str] = []
     counts = {"signedTreeHeads": len(signed_tree_heads),
               "witnessStatements": len(witness_statements),
-              "federationAnchors": len(federation_anchors)}
+              "federationAnchors": len(federation_anchors),
+              "auditOperationsIn": len(audit_operations),
+              "auditOperations": 0}
 
     # 1. signed tree heads, grouped by log_id and convention
     if signed_tree_heads:
@@ -135,7 +147,19 @@ def run(account: str,
         counts["federationOperations"] = fed_ops
         counts["federationGroups"] = len(groups2)
 
-    # 4. validate every operation, and refuse the batch if any fails
+    # 4. the audit-chain bridge: operations built by pipeline.Pipeline, taken as
+    #    they arrive and validated identically. Deliberately not rebuilt here.
+    if audit_operations:
+        added = 0
+        for op in audit_operations:
+            if not isinstance(op, (list, tuple)) or len(op) != 2 or not isinstance(op[1], dict):
+                notes.append("an audit operation was not a [type, body] pair and was skipped")
+                continue
+            ops.append(op)
+            added += 1
+        counts["auditOperations"] = added
+
+    # 5. validate every operation, and refuse the batch if any fails
     problems: List[Dict[str, Any]] = []
     for i, op in enumerate(ops):
         errs = validate_op(op, account)
@@ -151,6 +175,7 @@ def run(account: str,
             "broadcast": "never-performed-here", "signaturesVerified": False,
             "verdict": ("%d artifact(s) -> %d validated zero-fee operation(s)"
                         % (sum(counts[k] for k in ("signedTreeHeads", "witnessStatements",
-                                                   "federationAnchors")), len(ops))
+                                                   "federationAnchors", "auditOperations")),
+                           len(ops))
                         if ok else
                         "%d of %d operation(s) FAILED validation" % (len(problems), len(ops)))}

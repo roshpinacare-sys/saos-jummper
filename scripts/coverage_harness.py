@@ -1055,6 +1055,65 @@ def _secretsweep():
             " secrets, no finding carries a value, and a sweep without file text"
             " reports unassessed rather than clean")
 
+@check("kernelbridge")
+def _kernelbridge():
+    m = importlib.import_module("jumpper.kernelbridge")
+    sth = importlib.import_module("jumpper.sth")
+    R1 = "a54a51c7524dabc41d09d859f5d642aa836947482ef30467aef6e5a3f66416d0"
+    R2 = "6d4c4a120df44afb530180f78688cc15fffa66688e20ef80675710fad8f30843"
+    A = {"version": "tfa-federation-v1", "anchorId": "fa-0001",
+         "logA": {"logId": "org.acme/audit", "root": R1, "treeSize": 12108},
+         "logB": {"logId": "org.beta/ledger", "root": R2, "treeSize": 8842},
+         "anchoredAt": "2026-09-08T12:00:00Z", "signerId": "witness-1",
+         "signature": "c2ln", "algorithm": "ed25519"}
+    fa = m.parse_federation_anchor(A)
+    assert fa.anchor_id == "fa-0001" and fa.log_a.tree_size == 12108
+    assert fa.log_b.log_id == "org.beta/ledger" and fa.signer_id == "witness-1"
+    # a federation anchor binds two DIFFERENT logs - the same endpoint twice is refused
+    try:
+        m.parse_federation_anchor(dict(A, logB=dict(A["logA"])))
+        raise AssertionError("logA == logB was accepted")
+    except m.KernelBridgeError:
+        pass
+    for bad in [{k: v for k, v in A.items() if k != "logB"},
+                dict(A, logA=dict(A["logA"], root="zz" * 32)),
+                dict(A, logA=dict(A["logA"], treeSize=-1)),
+                dict(A, anchoredAt="not-a-date"),
+                {k: v for k, v in A.items() if k != "anchorId"}]:
+        try:
+            m.parse_federation_anchor(bad); raise AssertionError("bad anchor accepted")
+        except m.KernelBridgeError:
+            pass
+    feds = [m.FederationCommitment("fa-%04d" % i, fa.log_a, fa.log_b, fa.anchored_at, fa.signer_id)
+            for i in range(6)]
+    pay = m.encode_federations(feds)
+    assert len(pay.encode()) <= 8192 and len(pay.encode()) < 900, len(pay.encode())
+    op = m.build_federation_op("headcorner", feds)
+    assert op[0] == "custom_json" and op[1]["id"] == m.FED_ANCHOR_ID
+    assert op[1]["required_posting_auths"] == ["headcorner"] and op[1]["required_auths"] == []
+    assert "fee" not in op[1]
+    # one batch covers one log pair and one signer
+    try:
+        m.encode_federations(feds + [m.FederationCommitment("x", fa.log_b, fa.log_a, fa.anchored_at, fa.signer_id)])
+        raise AssertionError("mixed log pairs accepted")
+    except m.KernelBridgeError:
+        pass
+    # the integrated plan: three artifact types, zero fee
+    heads = [sth.SignedTreeHead("org.acme/audit", 12108 + i, R1, "2026-09-08T00:00:00Z",
+                               convention=sth.CONV_SELFPAIR) for i in range(300)]
+    pl = m.plan("headcorner", federations=feds, heads=heads)
+    assert pl["fee"] == 0 and pl["totalFee"] == 0
+    assert pl["authority"] == "posting"
+    assert pl["signedTreeHeads"] == 300 and pl["federationAnchors"] == 6
+    assert pl["totalOperations"] == pl["headOperations"] + pl["federationOperations"]
+    assert pl["totalOperations"] <= 4, pl["totalOperations"]
+    assert pl["signing"] == "external-only" and pl["broadcast"] == "never-performed-here"
+    assert pl["signaturesVerified"] is False
+    assert "306 artifact" in pl["verdict"], pl["verdict"]
+    return ("the three kernel artifact types publish for free: 300 signed tree heads plus"
+            " 6 federation anchors in 3 zero-fee POSTING operations, logA==logB refused,"
+            " and every malformed endpoint refused rather than defaulted")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

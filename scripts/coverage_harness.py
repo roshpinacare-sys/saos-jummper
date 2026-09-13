@@ -1257,6 +1257,79 @@ def _integration():
             " non-compliant audit op fails the whole batch, a malformed one is noted"
             " and skipped, and a non-quorate witness set is noted not dropped")
 
+@check("ratelimit")
+def _ratelimit():
+    m = importlib.import_module("jumpper.ratelimit")
+    b = m.RateBudget(limit=60, window_s=60.0, available=10.0, as_of=1000.0, max_inflight=4)
+    # availability is projected forward from the reading, not taken as the snapshot
+    assert b.projected(1000.0) == 10.0
+    assert b.projected(1030.0) == 40.0
+    assert b.projected(1060.0) == 60.0
+    assert b.projected(1200.0) == 60.0, "projection must clamp at the limit"
+    assert b.next_available(1000.0) == 0.0
+    drained = m.RateBudget(limit=60, window_s=60.0, available=0.0, as_of=0.0)
+    assert abs(drained.next_available(0.0) - 1.0) < 1e-9
+    assert b.plan(5, 1000.0)["decision"] == m.ALLOW
+    assert b.plan(20, 1000.0)["decision"] == m.DELAY
+    assert abs(b.plan(20, 1000.0)["waitSeconds"] - 10.0) < 1e-9
+    assert b.plan(60, 1060.0)["decision"] == m.ALLOW
+    # a measured balance is not flagged as assumed; an unmeasured one is
+    assert b.plan(5, 1000.0)["availabilityAssumed"] is False
+    u = m.RateBudget(limit=60, window_s=60.0, available=None)
+    assert u.plan(5, 0.0)["availabilityAssumed"] is True
+    assert "assumed" in u.plan(5, 0.0)["reason"]
+    # a server that says when to come back is obeyed
+    r = m.backoff(3, retry_after=7.5)
+    assert r["waitSeconds"] == 7.5 and r["source"] == "retry-after"
+    # otherwise it grows exponentially and is capped
+    assert m.backoff(0, jitter=0.0)["waitSeconds"] == 1.0
+    assert m.backoff(2, jitter=0.0)["waitSeconds"] == 4.0
+    assert m.backoff(20, jitter=0.0)["waitSeconds"] == 60.0
+    assert m.backoff(20, jitter=0.0)["capped"] is True
+    # jitter actually varies, or every scheduled run retries at the same instant
+    import random as _rnd
+    draws = {round(m.backoff(2, rng=_rnd.Random(i))["waitSeconds"], 4) for i in range(8)}
+    assert len(draws) > 1, draws
+    assert m.parse_retry_after({"Retry-After": "12"}) == 12.0
+    assert m.parse_retry_after({"retry-after": "3.5"}) == 3.5
+    # an unparseable or negative header is None, never zero - zero would retry
+    # immediately and hit the same limit
+    assert m.parse_retry_after({"Retry-After": "not-a-number"}) is None
+    assert m.parse_retry_after({"Retry-After": "-4"}) is None
+    assert m.parse_retry_after({"X-Other": "1"}) is None
+    assert m.parse_retry_after("not-a-dict") is None
+    # schedule splits a batch across windows instead of stalling on one big wait
+    sc = m.schedule(100, m.RateBudget(limit=60, window_s=60.0, available=0.0, as_of=0.0), 0.0)
+    assert sc["scheduled"] == 100 and sc["remaining"] == 0
+    assert sc["sliceCount"] == 2 and abs(sc["totalWaitSeconds"] - 120.0) < 1e-9
+    assert m.schedule(0, b, 0.0)["sliceCount"] == 0
+    # fail closed on every bad input, including the two that would stall forever
+    assert m.RateBudget(limit=0, window_s=60.0).plan(1, 0.0)["decision"] == m.REFUSE
+    try:
+        m.RateBudget(limit=0, window_s=60.0).next_available(0.0)
+        raise AssertionError("a zero limit delayed instead of refusing")
+    except m.RateLimitError:
+        pass
+    for bad in [lambda: m.RateBudget(limit=-1, window_s=60.0),
+                lambda: m.RateBudget(limit=10, window_s=0),
+                lambda: m.RateBudget(limit=10, window_s=60.0, available=-1),
+                lambda: m.RateBudget(limit=10, window_s=60.0, max_inflight=0),
+                lambda: m.backoff(-1),
+                lambda: m.backoff(0, base_s=10, cap_s=1),
+                lambda: m.backoff(0, jitter=2.0),
+                lambda: m.backoff(0, retry_after=-1),
+                lambda: b.plan(-1, 0.0),
+                lambda: m.schedule(-1, b, 0.0)]:
+        try:
+            bad(); raise AssertionError("a bad input was accepted")
+        except m.RateLimitError:
+            pass
+    return ("availability projected forward not snapshotted, Retry-After obeyed,"
+            " exponential backoff capped and jittered so scheduled runs do not all"
+            " retry at one instant, a 100-request batch split into 2 slices over 120 s,"
+            " an unmeasured balance flagged as assumed, and a zero limit refused"
+            " rather than delayed forever")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

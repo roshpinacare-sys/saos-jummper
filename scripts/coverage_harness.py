@@ -1114,6 +1114,55 @@ def _kernelbridge():
             " 6 federation anchors in 3 zero-fee POSTING operations, logA==logB refused,"
             " and every malformed endpoint refused rather than defaulted")
 
+@check("gatecompose")
+def _gatecompose():
+    m = importlib.import_module("jumpper.gatecompose")
+    ORDER = ["read", "write", "transfer", "destructive", "irreversible"]
+    MAP = {"read": "auto", "write": "single_approval", "transfer": "multi_approval",
+           "destructive": "multi_approval", "irreversible": "deny"}
+    # an agent claiming a benign class cannot lower a server-derived one
+    r = m.gate(ORDER, MAP, "transfer", "read", 0.90, financial=True)
+    assert r["composedClass"] == "transfer" and r["classSource"] == "derived"
+    assert r["deEscalationAttempted"] is True
+    assert r["effectiveThreshold"] == 0.95 and r["decision"] == "human"
+    # the same action, honestly declared and confidently scored, auto-approves
+    r2 = m.gate(ORDER, MAP, "transfer", "transfer", 0.96, financial=True)
+    assert r2["decision"] == "auto" and r2["classSource"] == "agreed"
+    # a deny from the approval router is a deny regardless of the score
+    r3 = m.gate(ORDER, MAP, "irreversible", "read", 1.0, irreversible=True)
+    assert r3["decision"] == "deny" and r3["approvalClass"] == "deny"
+    # escalation by the caller is permitted
+    r4 = m.gate(ORDER, MAP, "read", "destructive", 0.90)
+    assert r4["composedClass"] == "destructive" and r4["classSource"] == "supplied"
+    # an unknown class is refused rather than defaulted
+    for bad in ["quantum", "", None, 7]:
+        try:
+            m.gate(ORDER, MAP, bad, "read", 0.9); raise AssertionError("unknown class accepted")
+        except m.GateComposeError:
+            pass
+    for bad in ["totally-safe", 3]:
+        try:
+            m.gate(ORDER, MAP, "read", bad, 0.9); raise AssertionError("unknown supplied accepted")
+        except m.GateComposeError:
+            pass
+    # the ordering itself is validated
+    for bad in (["a"], ["a", "a"], "abc", None):
+        try:
+            m.gate(bad, MAP, "read", "read", 0.9); raise AssertionError("bad order accepted")
+        except m.GateComposeError:
+            pass
+    # an unmapped risk class denies - the kernel rule, not a permissive default
+    assert m.resolve_approval({"read": "auto"}, "write") == "deny"
+    assert m.resolve_approval({"read": "auto"}, "unknown") == "deny"
+    # a missing score never auto-approves, and says why
+    r5 = m.gate(ORDER, MAP, "read", "read", None)
+    assert r5["decision"] == "deny" and r5["score"] == 0.0
+    assert "scoreWarning" in r5 and r5["signaturesVerified"] is False
+    return ("the two halves composed: an agent claiming read cannot lower a server-"
+            " derived transfer (threshold stays 0.95, decision human), an approval-"
+            " router deny beats a perfect score, unknown classes are refused rather"
+            " than defaulted, and a missing score never auto-approves")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

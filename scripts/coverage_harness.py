@@ -1225,10 +1225,37 @@ def _integration():
     # an empty run is zero operations, not an error
     r3 = m.run("headcorner")
     assert r3["ok"] is True and r3["operationCount"] == 0
-    return ("363 artifacts across all three kernel types publish in 5 validated"
-            " zero-fee POSTING operations, every emitted op checked for authority,"
-            " fee and budget, an ACTIVE-authority op with a fee is rejected with three"
-            " separate reasons, and a non-quorate witness set is noted not dropped")
+    # ALL FOUR BRIDGES must be reachable from one call. The docstring claimed this
+    # while only three were wired, and nothing caught it because no check asserted
+    # the fourth. This is the assertion that would have.
+    AUDIT_OP = ["custom_json", {"required_auths": [],
+                                "required_posting_auths": ["headcorner"],
+                                "id": "saos-audit-head.v1", "json": "1|audit|0:x"}]
+    r5 = m.run("headcorner", signed_tree_heads=heads, witness_statements=wits,
+               federation_anchors=feds, audit_operations=[AUDIT_OP])
+    ids = {op[1]["id"] for op in r5["operations"]}
+    assert "saos-sth.anchor.v1" in ids, ids
+    assert "saos-witness-quorum.v1" in ids, ids
+    assert "saos-federation-anchor.v1" in ids, ids
+    assert "saos-audit-head.v1" in ids, ids
+    assert r5["ok"] is True and r5["problems"] == []
+    assert r5["counts"]["auditOperations"] == 1
+    assert r5["totalFee"] == 0 and r5["authority"] == "posting"
+    # a pre-built audit op that is non-compliant fails the whole batch, because the
+    # runner validates what it is handed rather than trusting the caller
+    BAD_OP = ["custom_json", {"required_auths": ["headcorner"],
+                              "required_posting_auths": [], "id": "x",
+                              "json": "y", "fee": "1.000"}]
+    r6 = m.run("headcorner", audit_operations=[BAD_OP])
+    assert r6["ok"] is False and len(r6["problems"][0]["errors"]) == 3
+    # a malformed op is noted and skipped, never silently passed through
+    r7 = m.run("headcorner", audit_operations=[["custom_json", {"id": "x"}], "not-an-op"])
+    assert len(r7["notes"]) == 1 and "skipped" in r7["notes"][0]
+    return ("all four bridges reachable from one call: 363 kernel artifacts plus a"
+            " pre-built audit-head op publish as validated zero-fee POSTING"
+            " operations, every emitted op checked for authority, fee and budget, a"
+            " non-compliant audit op fails the whole batch, a malformed one is noted"
+            " and skipped, and a non-quorate witness set is noted not dropped")
 
 def main():
     src = os.path.join(ROOT, "src", "jumpper")

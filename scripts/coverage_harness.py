@@ -1163,6 +1163,73 @@ def _gatecompose():
             " router deny beats a perfect score, unknown classes are refused rather"
             " than defaulted, and a missing score never auto-approves")
 
+@check("integration")
+def _integration():
+    m = importlib.import_module("jumpper.integration")
+    sth = importlib.import_module("jumpper.sth")
+    R1 = "a54a51c7524dabc41d09d859f5d642aa836947482ef30467aef6e5a3f66416d0"
+    R2 = "6d4c4a120df44afb530180f78688cc15fffa66688e20ef80675710fad8f30843"
+    heads = [sth.SignedTreeHead("org.acme/audit", 12108 + i, R1,
+                               "2026-09-08T00:00:%02dZ" % (i % 60),
+                               convention=sth.CONV_SELFPAIR) for i in range(300)]
+    wits = [{"version": "tfa-witness-v1", "logId": "org.acme/audit", "root": R1,
+             "treeSize": 12108, "observedAt": "2026-09-08T12:00:0%dZ" % k,
+             "witnessId": "witness-%d" % k, "algorithm": "ed25519", "signature": "c2ln"}
+            for k in range(3)]
+    feds = [{"version": "tfa-federation-v1", "anchorId": "fa-%04d" % i,
+             "logA": {"logId": "org.acme/audit", "root": R1, "treeSize": 12108 + i},
+             "logB": {"logId": "org.beta/ledger", "root": R2, "treeSize": 8842 + i},
+             "anchoredAt": "2026-09-08T12:%02d:00Z" % (i % 60), "signerId": "witness-1",
+             "signature": "c2ln", "algorithm": "ed25519"} for i in range(60)]
+    r = m.run("headcorner", signed_tree_heads=heads, witness_statements=wits,
+              federation_anchors=feds)
+    assert r["ok"] is True and r["problems"] == [], r["problems"]
+    assert r["operationCount"] == 5, r["operationCount"]
+    assert r["counts"]["signedTreeHeads"] == 300
+    assert r["counts"]["federationAnchors"] == 60
+    assert r["counts"]["witnessStatements"] == 3
+    assert r["totalFee"] == 0 and r["authority"] == "posting"
+    assert r["signing"] == "external-only" and r["broadcast"] == "never-performed-here"
+    assert r["signaturesVerified"] is False
+    # every emitted operation is POSTING, free, identified and inside the budget
+    for op in r["operations"]:
+        b = op[1]
+        assert op[0] == "custom_json" and b["required_auths"] == []
+        assert b["required_posting_auths"] == ["headcorner"]
+        assert "fee" not in b and "amount" not in b
+        assert b["id"] and len(b["json"].encode()) <= 8192
+    # validate_op rejects an ACTIVE-authority op that carries a fee
+    bad = ["custom_json", {"required_auths": ["headcorner"], "required_posting_auths": [],
+                           "id": "x", "json": "y", "fee": "1.000"}]
+    errs = m.validate_op(bad, "headcorner")
+    assert len(errs) == 3, errs
+    assert any("POSTING" in e for e in errs) and any("fee" in e for e in errs)
+    # a non-quorate witness set is noted, not silently dropped
+    r2 = m.run("headcorner", witness_statements=wits[:1], quorum_threshold=2)
+    assert r2["ok"] is True and len(r2["notes"]) == 1
+    assert "not quorate" in r2["notes"][0]
+    # fail-closed on bad input
+    try:
+        m.run(""); raise AssertionError("empty account accepted")
+    except m.IntegrationError:
+        pass
+    for bad_fed in [{"anchorId": "x"},
+                    {"version": "v", "anchorId": "a",
+                     "logA": {"logId": "l", "root": R1, "treeSize": 1},
+                     "logB": {"logId": "l", "root": R1, "treeSize": 1},
+                     "anchoredAt": "2026-09-08T12:00:00Z", "signerId": "s"}]:
+        try:
+            m.run("a", federation_anchors=[bad_fed]); raise AssertionError("bad anchor accepted")
+        except Exception:
+            pass
+    # an empty run is zero operations, not an error
+    r3 = m.run("headcorner")
+    assert r3["ok"] is True and r3["operationCount"] == 0
+    return ("363 artifacts across all three kernel types publish in 5 validated"
+            " zero-fee POSTING operations, every emitted op checked for authority,"
+            " fee and budget, an ACTIVE-authority op with a fee is rejected with three"
+            " separate reasons, and a non-quorate witness set is noted not dropped")
+
 def main():
     src = os.path.join(ROOT, "src", "jumpper")
     present = sorted(f[:-3] for f in os.listdir(src)

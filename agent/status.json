@@ -1,0 +1,12 @@
+{
+ "agent": "jumpper-tests",
+ "generatedAt": "2026-09-16T21:12:02Z",
+ "verdict": "FAIL",
+ "checks": {
+  "unitTestsRan": 25,
+  "unitTestsOk": 0,
+  "packageCompiles": 1,
+  "liveWitnessDemo": "pass"
+ },
+ "reason": "unit tests failed"
+}

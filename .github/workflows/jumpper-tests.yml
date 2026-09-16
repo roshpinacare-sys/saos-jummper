@@ -77,19 +77,19 @@ jobs:
 
           mkdir -p agent
           cat > agent/status.json <<EOF
-{
- "agent": "jumpper-tests",
- "generatedAt": "$NOW",
- "verdict": "$VERDICT",
- "checks": {
-  "unitTestsRan": $TESTS_RAN,
-  "unitTestsOk": $UNIT_OK,
-  "packageCompiles": $COMPILE_OK,
-  "liveWitnessDemo": "$DEMO"
- },
- "reason": "$REASON"
-}
-EOF
+          {
+           "agent": "jumpper-tests",
+           "generatedAt": "$NOW",
+           "verdict": "$VERDICT",
+           "checks": {
+            "unitTestsRan": $TESTS_RAN,
+            "unitTestsOk": $UNIT_OK,
+            "packageCompiles": $COMPILE_OK,
+            "liveWitnessDemo": "$DEMO"
+           },
+           "reason": "$REASON"
+          }
+          EOF
           git config user.name "jumpper-tests[bot]"
           git config user.email "jumpper-tests[bot]@users.noreply.github.com"
           git add agent/status.json

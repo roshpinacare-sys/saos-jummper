@@ -1,12 +1,12 @@
 {
  "agent": "jumpper-tests",
- "generatedAt": "2026-09-16T21:12:02Z",
- "verdict": "FAIL",
+ "generatedAt": "2026-09-16T21:27:41Z",
+ "verdict": "PASS",
  "checks": {
-  "unitTestsRan": 25,
-  "unitTestsOk": 0,
+  "unitTestsRan": 673,
+  "unitTestsOk": 1,
   "packageCompiles": 1,
   "liveWitnessDemo": "pass"
  },
- "reason": "unit tests failed"
+ "reason": "unit tests pass, package compiles"
 }

@@ -46,6 +46,10 @@ jobs:
             pip install --quiet requests
           fi
 
+          # החבילה עצמה - מותקנת מקומית כדי שהמבחנים ימצאו את jumpper מ-src
+          pip install --quiet -e . 2>/dev/null || true
+          export PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}"
+
           # 1) מבחני היחידה - השער הקשה
           UNIT_OUT="$(python3 -m unittest discover -s tests -v 2>&1 || true)"
           echo "$UNIT_OUT" | tail -25

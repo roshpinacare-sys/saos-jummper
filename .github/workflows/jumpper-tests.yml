@@ -1,0 +1,103 @@
+# JUMPPER-TESTS - מבחני הנוטריון חוצה-השרשרות
+#
+# JUMPPER הוא נוטריון ההוכחות של הרשת: כל טענה דיגיטלית הופכת לרשומה
+# ציבורית וזולה לאימות על את'ריום, מוכוונת על ידי חמש שעוני שרשרת.
+# הסוכן מריץ את מלוא מבחני היחידה (הדרישה הקשה) ואת הדמו החי
+# (עד ראייה קריאה בלבד מול שרשרות ציבוריות - כשל רשת מדווח בכנות
+# בלי להכשיל את הפסק). דוח אמת ל-agent/status.json.
+
+name: jumpper-tests
+
+on:
+  schedule:
+    - cron: '29 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jumpper-tests
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run the notary test suite
+        run: |
+          set -u
+          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          VERDICT="FAIL"
+          REASON="unit tests failed"
+
+          if [ -f requirements.txt ]; then
+            pip install --quiet -r requirements.txt || pip install --quiet requests
+          else
+            pip install --quiet requests
+          fi
+
+          # 1) מבחני היחידה - השער הקשה
+          UNIT_OUT="$(python3 -m unittest discover -s tests -v 2>&1 || true)"
+          echo "$UNIT_OUT" | tail -25
+          UNIT_OK=0
+          echo "$UNIT_OUT" | grep -q '^OK' && UNIT_OK=1
+          TESTS_RAN="$(echo "$UNIT_OUT" | grep -oE 'Ran [0-9]+ tests? in' | grep -oE '[0-9]+' | head -1 || echo 0)"
+
+          # 2) קומפילציה של החבילה כולה
+          COMPILE_OK=1
+          python3 -m compileall -q src || COMPILE_OK=0
+
+          # 3) הדמו החי - עד ראייה קריאה; כשל רשת מדווח ולא מכשיל
+          DEMO="skipped"; DEMO_NOTE="demo script not found"
+          if [ -f scripts/demo_end_to_end.py ]; then
+            DEMO_NOTE=""
+            if python3 scripts/demo_end_to_end.py > /tmp/demo.log 2>&1; then
+              DEMO="pass"
+            else
+              DEMO="failed"
+              DEMO_NOTE="live witness read failed - see the run log"
+            fi
+          fi
+
+          if [ "$UNIT_OK" = "1" ] && [ "$COMPILE_OK" = "1" ]; then
+            VERDICT="PASS"; REASON="unit tests pass, package compiles"
+          elif [ "$UNIT_OK" = "1" ]; then
+            VERDICT="FAIL"; REASON="package compile failed"
+          fi
+
+          mkdir -p agent
+          cat > agent/status.json <<EOF
+{
+ "agent": "jumpper-tests",
+ "generatedAt": "$NOW",
+ "verdict": "$VERDICT",
+ "checks": {
+  "unitTestsRan": $TESTS_RAN,
+  "unitTestsOk": $UNIT_OK,
+  "packageCompiles": $COMPILE_OK,
+  "liveWitnessDemo": "$DEMO"
+ },
+ "reason": "$REASON"
+}
+EOF
+          git config user.name "jumpper-tests[bot]"
+          git config user.email "jumpper-tests[bot]@users.noreply.github.com"
+          git add agent/status.json
+          if git diff --cached --quiet agent/status.json; then
+            echo "status unchanged - no commit"
+          else
+            git commit -m "jumpper-tests: $VERDICT at $NOW"
+            git push
+          fi
+          echo "verdict: $VERDICT ($REASON)"
+          [ "$VERDICT" = "PASS" ] || exit 1

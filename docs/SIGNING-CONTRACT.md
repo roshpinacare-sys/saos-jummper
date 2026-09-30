@@ -24,16 +24,18 @@ superseded - history is not deleted, it is closed out.
 | `signing/orchestrator.ts` | Saosmartwallet | **6/6 (100%)** | **yes** | none |
 | `policy/engine.ts` | Saosmartwallet | 2/6 (33%) | n/a - not a signer | role, reveal, broadcast, audit |
 | `relay-eth.ts` (`src/lib/dex/`) | **saos-dex** | **6/6 (100%)** - re-measured 2026-09-30 | **yes** (post-wiring) | none |
-| `relay.ts` (`src/lib/dex/`) | **saos-dex** | **3/6 (50%)** - re-measured 2026-09-30, unchanged | **no** | session-gate, policy-gate, audit-trail - **not yet wired** (Task 8-a covered `relay-eth.ts`, not this file) |
+| `relay.ts` (`src/lib/dex/`) | **saos-dex** | **6/6 (100%)** - re-measured 2026-09-30 (Task 11-b wiring, 0bc6927) | **yes** (post-wiring) | none |
+| `relay-sol.ts` (`src/lib/dex/`) | **saos-dex** | **6/6 (100%)** - re-measured 2026-09-30 (Task 12-a wiring, 65f1dd2) | **yes** (post-wiring) | none |
 | `anchor-live.ts` (`src/lib/saos/`) | **saos-sovereign-platform** | **6/6 (100%)** - re-measured 2026-09-30 | **yes** (post-wiring) | none |
 
 Superseded scores, as originally published (kept for the record):
 
 | file | score at original measurement | status |
 |---|---|---|
-| `relay.ts` | 3/6 (50%) | superseded 2026-09-30 - re-measured, still 3/6, no change |
+| `relay.ts` | 3/6 (50%) | superseded 2026-09-30 - re-measured, still 3/6, no change; later the same day Task 11-b (0bc6927) wired it to 6/6 |
 | `anchor-live.ts` | 1/6 (17%) | superseded 2026-09-30 - Task 8-a port brought it to 6/6 |
 | `relay-eth.ts` | 2/6 (baseline measured during Task 8-a; never had its own row above) | superseded 2026-09-30 - Task 8-a port brought it to 6/6 |
+| `relay-sol.ts` | 2/6 (33% - baseline measured during Task 11-b as a bonus honest find; never had its own row above) | superseded 2026-09-30 - Task 12-a wiring brought it to 6/6 (65f1dd2) |
 
 **Original finding (now superseded in part):** the code designed to hold funds
 conforms completely, the code that actually broadcasts to HIVE and STEEM mainnet
@@ -48,10 +50,31 @@ re-measure (repos since advanced to 4fa6366 / d3119da; the measured files are
 byte-identical to the Task 8-a ports - blob SHAs checked against remote main).
 `relay.ts` - the dex STEEM/HIVE relay - was NOT part of Task 8-a and still
 measures 3/6, so actions 2-5 below still apply to that one file.
+(Superseded later the same day - see the Task 11-b / 12-a update below.)
 
 `policy/engine.ts` at 2/6 is not a deficiency - it is the policy layer, not a
 signing path, so it legitimately does not reveal keys or broadcast. The contract
 is written for signing paths and says so.
+
+**Update 2026-09-30 (Tasks 11-b / 12-a):** the remaining gaps were closed in
+`saos-dex` itself. Task 11-b wired `relay.ts` to the six stages
+(session-gate via `ensureUnlocked` + `unlockRelaySigningSession`, policy-gate
+`evaluatePolicy` pre-key with role resolution and replay/repeat/daily-volume
+guards read from the audit chain, audit-trail through the shared hash-chained
+`appendAudit`) - pushed as 0bc6927. Task 12-a gave `relay-sol.ts` (the SPL
+Memo Solana broadcaster, baseline 2/6, never previously wired) the same
+treatment with Solana-appropriate primitives: `ensureUnlocked` +
+`unlockSolSigningSession` + timing-safe step-up, `evaluatePolicy` pre-key
+(allowed-operations chain-seal only, role resolved from the operator
+declaration - Solana has no on-chain authority derivation, and that mapping is
+documented in the file rather than faked - replay/repeat guards and a daily
+lamports budget, all read from the SAME audit chain), and `key_used` /
+`signing_attempt` / `broadcast` / `policy_violation` events through the shared
+`appendAudit` - pushed as 65f1dd2. Both files measure 6/6 with this checker
+(re-measured 2026-09-30; the measured files' blob SHAs were verified against
+remote `main` of saos-dex). With that, every broadcaster in the estate that
+moves real value measures 6/6: orchestrator, relay-eth, relay, relay-sol,
+anchor-live.
 
 ---
 
@@ -174,6 +197,14 @@ evidence scan and both leak scans are now guarded.
 
 Action 1 alone removes fund-moving capability from the automated broadcaster, and
 it is a configuration change.
+
+Status 2026-09-30: actions 2-4 are implemented for `relay.ts` (Task 11-b) and
+`relay-sol.ts` (Task 12-a); action 5 (routing through `packages/core`) remains
+open estate-wide by choice - the ports are honest mirrors, not the original.
+Action 1 remains configuration the operator must set on the live boxes
+(`STEEM_POSTING_WIF` / `HIVE_POSTING_WIF`, and for the sol rail:
+`SOL_SIGNING_SESSION_UNLOCKED=1` alongside `SOL_BROADCAST_ENABLED`, same
+two-key arming doctrine as the ETH and relay rails).
 
 ---
 

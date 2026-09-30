@@ -33,13 +33,13 @@ Measured across the estate with this module:
         orchestrator.ts   (Saosmartwallet)          6/6  safe_to_hold_funds = True
         relay-eth.ts      (saos-dex)                6/6  Task 8-a port (e5d22e5)
         anchor-live.ts    (saos-sovereign-platform) 6/6  Task 8-a port (3f4eeb3)
-        relay.ts          (saos-dex)                3/6  3/6 as of 2026-09-30 table;
-                                                         wiring in progress (missing:
-                                                         session-gate, policy-gate,
-                                                         audit-trail - not yet wired)
+        relay.ts          (saos-dex)                6/6  Task 11-b wiring (0bc6927)
+        relay-sol.ts      (saos-dex)                6/6  Task 12-a wiring (65f1dd2)
 
-The gap is not knowledge. The controls exist; the one broadcaster not yet wired
-(relay.ts, 3/6) does not import them.
+SUPERSEDED 2026-09-30 (wiring-era snapshot, kept for history): relay.ts was
+3/6 (missing session-gate, policy-gate, audit-trail) and relay-sol.ts 2/6.
+Every broadcaster in the array now CONFORMS at 6/6; the gap this docstring
+once described is closed.
 
 BUILD NOTE: everything the stage lambdas call is defined ABOVE the STAGES list. A
 previous revision spliced a helper in after STAGES using an index search for

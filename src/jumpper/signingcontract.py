@@ -19,11 +19,27 @@ publicKeyFor(), returning a derived public key; and console appears ZERO times.
 
 Measured across the estate with this module:
 
-    orchestrator.ts   (Saosmartwallet)          6/6  safe_to_hold_funds = True
-    relay.ts          (saos-dex)                1/6  the code that actually broadcasts
-    anchor-live.ts    (saos-sovereign-platform) 1/6
+    SUPERSEDED 2026-09-30 (pre-Task-8-a snapshot, kept for history - history is
+    closed out, not deleted; the honest table now lives in
+    docs/SIGNING-CONTRACT.md):
 
-The gap is not knowledge. The controls exist; the broadcaster does not import them.
+        orchestrator.ts   (Saosmartwallet)          6/6  safe_to_hold_funds = True
+        relay.ts          (saos-dex)                1/6  the code that actually broadcasts
+        anchor-live.ts    (saos-sovereign-platform) 1/6
+
+    CURRENT as of the 2026-09-30 table (re-measured with this checker, checker
+    unmodified):
+
+        orchestrator.ts   (Saosmartwallet)          6/6  safe_to_hold_funds = True
+        relay-eth.ts      (saos-dex)                6/6  Task 8-a port (e5d22e5)
+        anchor-live.ts    (saos-sovereign-platform) 6/6  Task 8-a port (3f4eeb3)
+        relay.ts          (saos-dex)                3/6  3/6 as of 2026-09-30 table;
+                                                         wiring in progress (missing:
+                                                         session-gate, policy-gate,
+                                                         audit-trail - not yet wired)
+
+The gap is not knowledge. The controls exist; the one broadcaster not yet wired
+(relay.ts, 3/6) does not import them.
 
 BUILD NOTE: everything the stage lambdas call is defined ABOVE the STAGES list. A
 previous revision spliced a helper in after STAGES using an index search for

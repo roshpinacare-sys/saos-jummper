@@ -12,16 +12,42 @@ Implemented in `src/jumpper/signingcontract.py`, with 17 assertions in
 
 ## The measured result
 
-| file | repo | score | safe to hold funds | missing stages |
+**Re-measured 2026-09-30** with `src/jumpper/signingcontract.py` (the canonical
+checker, unmodified) against the committed sources on `main` of each repo. The
+blob SHAs of the measured files were verified identical between the local
+working trees and remote `main` via the GitHub API, so these scores describe
+remote `main` as of the re-measure date. Old scores are kept below, marked
+superseded - history is not deleted, it is closed out.
+
+| file | repo | score (re-measured 2026-09-30) | safe to hold funds | missing stages |
 |---|---|---|---|---|
 | `signing/orchestrator.ts` | Saosmartwallet | **6/6 (100%)** | **yes** | none |
 | `policy/engine.ts` | Saosmartwallet | 2/6 (33%) | n/a - not a signer | role, reveal, broadcast, audit |
-| `relay.ts` | **saos-dex** | **3/6 (50%)** | **no** | session-gate, policy-gate, audit-trail |
-| `anchor-live.ts` | **saos-sovereign-platform** | **1/6 (17%)** | **no** | all but capability-broadcast |
+| `relay-eth.ts` (`src/lib/dex/`) | **saos-dex** | **6/6 (100%)** - re-measured 2026-09-30 | **yes** (post-wiring) | none |
+| `relay.ts` (`src/lib/dex/`) | **saos-dex** | **3/6 (50%)** - re-measured 2026-09-30, unchanged | **no** | session-gate, policy-gate, audit-trail - **not yet wired** (Task 8-a covered `relay-eth.ts`, not this file) |
+| `anchor-live.ts` (`src/lib/saos/`) | **saos-sovereign-platform** | **6/6 (100%)** - re-measured 2026-09-30 | **yes** (post-wiring) | none |
 
-**The code designed to hold funds conforms completely. The code that actually
-broadcasts to HIVE and STEEM mainnet conforms to half of it.** They are not
-connected to each other.
+Superseded scores, as originally published (kept for the record):
+
+| file | score at original measurement | status |
+|---|---|---|
+| `relay.ts` | 3/6 (50%) | superseded 2026-09-30 - re-measured, still 3/6, no change |
+| `anchor-live.ts` | 1/6 (17%) | superseded 2026-09-30 - Task 8-a port brought it to 6/6 |
+| `relay-eth.ts` | 2/6 (baseline measured during Task 8-a; never had its own row above) | superseded 2026-09-30 - Task 8-a port brought it to 6/6 |
+
+**Original finding (now superseded in part):** the code designed to hold funds
+conforms completely, the code that actually broadcasts to HIVE and STEEM mainnet
+conforms to half of it, and they are not connected to each other.
+
+**Update 2026-09-30 (Task 8-a):** the gap was closed by porting the six-stage
+orchestrator into the two broadcast paths that measured non-conforming -
+`saos-dex relay-eth.ts` (ETH seal broadcast, pushed as e5d22e5) and
+`saos-sovereign-platform anchor-live.ts` (STEEM/HIVE anchor, pushed as 3f4eeb3).
+Both now measure 6/6 with this checker, verified again at the 2026-09-30
+re-measure (repos since advanced to 4fa6366 / d3119da; the measured files are
+byte-identical to the Task 8-a ports - blob SHAs checked against remote main).
+`relay.ts` - the dex STEEM/HIVE relay - was NOT part of Task 8-a and still
+measures 3/6, so actions 2-5 below still apply to that one file.
 
 `policy/engine.ts` at 2/6 is not a deficiency - it is the policy layer, not a
 signing path, so it legitimately does not reveal keys or broadcast. The contract

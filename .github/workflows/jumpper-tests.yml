@@ -9,10 +9,7 @@
 name: jumpper-tests
 
 on:
-  schedule:
-    - cron: '29 10 * * *'
   workflow_dispatch:
-
 permissions:
   contents: write
 

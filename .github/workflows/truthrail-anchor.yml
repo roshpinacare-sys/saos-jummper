@@ -1,0 +1,56 @@
+# TRUTHRAIL-ANCHOR — saos-jummper's notary lane over the fleet receipts (T-58)
+#
+# ROLE: FLEET-GRAPH edge saos-jummper -> TruthRail. Produces a deterministic
+# merkle anchor over the latest TruthRail receipts with inclusion proofs —
+# keyless, public, independently verifiable by the fleet SDK
+# (@saos/fleet-sdk verifyAnchor recomputes root + proofs + bytes spot-check).
+#
+# HONEST BILLING NOTE (measured org-wide since ~09-20): PRIVATE repo —
+# Actions minutes are billing-walled; runs die at setup. Dispatch-ready, no
+# cron on purpose: a schedule that cannot run is noise, not autonomy. Until
+# then the lane runs anywhere with bare python3 (stdlib only):
+#   python3 scripts/truthrail_anchor.py --selftest && python3 scripts/truthrail_anchor.py
+#
+# External chain anchors (ETH/SOL) stay owner-key-gated — recorded honestly
+# in the anchor artifact as pending-owner-keys. אף-פעם לא מזויף-הצלחה.
+
+name: truthrail-anchor
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: truthrail-anchor
+  cancel-in-progress: false
+
+jobs:
+  anchor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Selftest gate (mocked vectors, no network)
+        run: python3 scripts/truthrail_anchor.py --selftest
+
+      - name: Live anchor (honest; failure is recorded, never hidden)
+        run: |
+          python3 scripts/truthrail_anchor.py || ANCHOR_EXIT=$?
+          echo "ANCHOR_EXIT=${ANCHOR_EXIT:-0}" >> "$GITHUB_ENV"
+
+      - name: Commit the anchor (notary-runner, rebase-before-push)
+        run: |
+          set -euo pipefail
+          if [ ! -s state/truthrail-anchor-latest.json ]; then echo "no anchor produced"; exit 1; fi
+          git config user.email "roshpinacare-sys@users.noreply.github.com"
+          git config user.name "jumpper-notary[bot]"
+          git pull --rebase origin main || true
+          git add state/truthrail-anchor-latest.json
+          if git diff --cached --quiet; then echo "anchor unchanged"; else git commit -m "truthrail-anchor: merkle anchor at $(date -u +%Y-%m-%dT%H:%M:%SZ)"; git push; fi
+
+      - name: Honest exit (0 = anchor ok · 1 = red anchor, digest still published)
+        run: exit "${ANCHOR_EXIT:-0}"

@@ -1,6 +1,6 @@
 {
   "schema": "saos.jummper.truthrail-anchor/1",
-  "at": "2026-10-11T20:36:10Z",
+  "at": "2026-10-11T20:42:16Z",
   "ok": true,
   "source": "TruthRail receipts/ on public main (roshpinacare-sys)",
   "root": "d841499f30b163ef5a87e38394607ebb546102b6a892745abed9fe41208e510b",
@@ -119,6 +119,7 @@
   ],
   "merkleRule": "sha256, odd-node duplicated (src/jumpper/merkle.py; fleet SDK port agrees)",
   "verifyWith": "@saos/fleet-sdk verifyAnchor — Sdk repo sdk/index.js (keyless, recomputes root + proofs + bytes spot-check)",
+  "publishedTo": "TruthRail/anchors/truthrail-anchor-latest.json — the PUBLIC verification surface (the notary repo is private; keyless verification must live on the public rail)",
   "producedBy": "revival-agent zai-code (T-58): listing via authenticated read during org unauth rate-limit; receipt bytes keyless via raw.githubusercontent; lane script scripts/truthrail_anchor.py remains 100% keyless for all future runs",
   "external": "pending-owner-keys — crosschain.py/solana.py adapters ready; no key exists in this lane (by design)"
 }

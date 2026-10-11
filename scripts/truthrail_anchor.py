@@ -5,10 +5,13 @@ ROLE (FLEET-GRAPH edge saos-jummper -> TruthRail): the fleet's receipts
 channel (TruthRail receipts/*.json, public, keyless) now gets a MERKLE ANCHOR:
 one deterministic root over the latest receipts, with inclusion proofs, so
 anyone — human or agent — can prove a receipt is part of the anchored batch
-WITHOUT trusting the notary. The anchor lives at
-state/truthrail-anchor-latest.json and is verified independently by the
-fleet SDK (@saos/fleet-sdk verifyAnchor — recomputes the root, checks every
-proof, spot-checks one receipt's bytes).
+WITHOUT trusting the notary. The notary keeps its own record at
+state/truthrail-anchor-latest.json, and the PUBLIC verification copy lives at
+TruthRail/anchors/truthrail-anchor-latest.json — because THIS repo is private,
+keyless verification must live on the public rail (measured T-58: raw/jsDelivr
+cannot serve private repos). It is verified independently by the fleet SDK
+(@saos/fleet-sdk verifyAnchor — recomputes the root, checks every proof,
+spot-checks one receipt's bytes).
 
 Laws (same as every probe/anchor layer in the fleet):
   · zero keys, zero auth, zero broadcast — every call is a public READ.
@@ -85,6 +88,7 @@ def _build_anchor(leaves_meta, source):
         "leaves": leaves_meta,
         "proofs": proofs,
         "merkleRule": "sha256, odd-node duplicated (src/jumpper/merkle.py; fleet SDK port agrees)",
+        "publishedTo": "TruthRail/anchors/truthrail-anchor-latest.json — the PUBLIC verification surface (the notary repo is private; keyless verification must live on the public rail)",
         "verifyWith": f"@saos/fleet-sdk verifyAnchor — Sdk repo sdk/index.js (keyless, recomputes root + proofs + bytes spot-check)",
         "external": "pending-owner-keys — crosschain.py/solana.py adapters ready; no key exists in this lane (by design)",
     }

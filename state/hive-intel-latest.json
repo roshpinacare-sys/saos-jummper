@@ -1,0 +1,795 @@
+{
+ "at": "2026-10-11T19:22:03Z",
+ "endpoint": "https://api.hive.blog",
+ "errors": [],
+ "head_block": 110688597,
+ "ok": true,
+ "reads": {
+  "dgp": {
+   "available_account_subsidies": 14675028,
+   "content_reward_percent": 6500,
+   "current_aslot": 110970441,
+   "current_hbd_supply": "31987717.461 HBD",
+   "current_remove_threshold": 200,
+   "current_supply": "590061805.532 HIVE",
+   "current_witness": "pharesim",
+   "delegation_return_period": 432000,
+   "dhf_interval_ledger": "18.333 HBD",
+   "downvote_pool_percent": 2500,
+   "early_voting_seconds": 86400,
+   "hbd_interest_rate": 1000,
+   "hbd_print_rate": 0,
+   "hbd_start_percent": 2000,
+   "hbd_stop_percent": 2000,
+   "head_block_id": "0698f9558fe74b569b31c11930545bbb858c1f20",
+   "head_block_number": 110688597,
+   "init_hbd_supply": "0.000 HBD",
+   "last_budget_time": "2026-10-11T18:38:09",
+   "last_irreversible_block_num": 110688597,
+   "max_consecutive_recurrent_transfer_failures": 10,
+   "max_open_recurrent_transfers": 255,
+   "max_recurrent_transfer_end_date": 730,
+   "maximum_block_size": 65536,
+   "mid_voting_seconds": 172800,
+   "min_recurrent_transfers_recurrence": 24,
+   "next_daily_maintenance_time": "2026-10-11T19:31:33",
+   "next_maintenance_time": "2026-10-11T19:38:09",
+   "num_pow_witnesses": 172,
+   "participation_count": 128,
+   "pending_rewarded_vesting_hive": "805651.326 HIVE",
+   "pending_rewarded_vesting_shares": "1421564117.943761 VESTS",
+   "proposal_fund_percent": 1000,
+   "recent_slots_filled": "340282366920938463463374607431768211455",
+   "reverse_auction_seconds": 0,
+   "time": "2026-10-11T19:22:03",
+   "total_pow": 514415,
+   "total_vesting_fund_hive": "216793247.233 HIVE",
+   "total_vesting_shares": "348420845611.295178 VESTS",
+   "vesting_reward_percent": 1500,
+   "virtual_supply": "1171656668.459 HIVE",
+   "vote_power_reserve_rate": 10
+  },
+  "feed_history": {
+   "current_max_history": {
+    "base": "0.056 HBD",
+    "quote": "1.000 HIVE"
+   },
+   "current_median_history": {
+    "base": "0.055 HBD",
+    "quote": "1.000 HIVE"
+   },
+   "current_min_history": {
+    "base": "0.053 HBD",
+    "quote": "1.000 HIVE"
+   },
+   "id": 0,
+   "market_median_history": {
+    "base": "0.055 HBD",
+    "quote": "1.000 HIVE"
+   },
+   "price_history": [
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.053 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.053 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.053 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.053 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.053 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.053 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.053 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.054 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.055 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    }
+   ]
+  },
+  "order_book": {
+   "asks": [
+    {
+     "created": "2026-10-11T19:01:00",
+     "hbd": 381694,
+     "hive": 6815968,
+     "order_price": {
+      "base": "7658.513 HIVE",
+      "quote": "428.877 HBD"
+     },
+     "real_price": "0.05600003551603294"
+    },
+    {
+     "created": "2026-10-11T19:01:42",
+     "hbd": 938,
+     "hive": 16711,
+     "order_price": {
+      "base": "16.711 HIVE",
+      "quote": "0.938 HBD"
+     },
+     "real_price": "0.05613069235832685"
+    },
+    {
+     "created": "2026-10-11T17:46:24",
+     "hbd": 47311,
+     "hive": 842133,
+     "order_price": {
+      "base": "1000.000 HIVE",
+      "quote": "56.180 HBD"
+     },
+     "real_price": "0.05618000000000000"
+    },
+    {
+     "created": "2026-10-11T16:54:24",
+     "hbd": 55108,
+     "hive": 980744,
+     "order_price": {
+      "base": "1000.000 HIVE",
+      "quote": "56.190 HBD"
+     },
+     "real_price": "0.05619000000000000"
+    },
+    {
+     "created": "2026-10-07T02:58:33",
+     "hbd": 14242,
+     "hive": 253419,
+     "order_price": {
+      "base": "386.000 HIVE",
+      "quote": "21.693 HBD"
+     },
+     "real_price": "0.05619948186528497"
+    },
+    {
+     "created": "2026-10-07T03:19:51",
+     "hbd": 22480,
+     "hive": 400000,
+     "order_price": {
+      "base": "400.000 HIVE",
+      "quote": "22.480 HBD"
+     },
+     "real_price": "0.05620000000000000"
+    },
+    {
+     "created": "2026-10-11T16:33:42",
+     "hbd": 56200,
+     "hive": 1000000,
+     "order_price": {
+      "base": "1000.000 HIVE",
+      "quote": "56.200 HBD"
+     },
+     "real_price": "0.05620000000000000"
+    },
+    {
+     "created": "2026-10-11T06:22:39",
+     "hbd": 93621,
+     "hive": 1663293,
+     "order_price": {
+      "base": "1663.293 HIVE",
+      "quote": "93.621 HBD"
+     },
+     "real_price": "0.05628653520456108"
+    },
+    {
+     "created": "2026-10-11T19:00:03",
+     "hbd": 181,
+     "hive": 3214,
+     "order_price": {
+      "base": "3.214 HIVE",
+      "quote": "0.181 HBD"
+     },
+     "real_price": "0.05631611698817673"
+    },
+    {
+     "created": "2026-10-11T19:00:03",
+     "hbd": 114,
+     "hive": 2024,
+     "order_price": {
+      "base": "2.024 HIVE",
+      "quote": "0.114 HBD"
+     },
+     "real_price": "0.05632411067193676"
+    }
+   ],
+   "bids": [
+    {
+     "created": "2026-10-11T19:17:18",
+     "hbd": 888,
+     "hive": 15874,
+     "order_price": {
+      "base": "0.888 HBD",
+      "quote": "15.874 HIVE"
+     },
+     "real_price": "0.05594053168703540"
+    },
+    {
+     "created": "2026-10-11T16:39:27",
+     "hbd": 55940,
+     "hive": 1000000,
+     "order_price": {
+      "base": "55.940 HBD",
+      "quote": "1000.000 HIVE"
+     },
+     "real_price": "0.05594000000000000"
+    },
+    {
+     "created": "2026-10-11T19:17:09",
+     "hbd": 2166410,
+     "hive": 38738621,
+     "order_price": {
+      "base": "2166.410 HBD",
+      "quote": "38738.621 HIVE"
+     },
+     "real_price": "0.05592377694600952"
+    },
+    {
+     "created": "2026-10-11T19:00:03",
+     "hbd": 112,
+     "hive": 2003,
+     "order_price": {
+      "base": "0.112 HBD",
+      "quote": "2.003 HIVE"
+     },
+     "real_price": "0.05591612581128307"
+    },
+    {
+     "created": "2026-10-11T16:42:24",
+     "hbd": 24596,
+     "hive": 440000,
+     "order_price": {
+      "base": "24.596 HBD",
+      "quote": "440.000 HIVE"
+     },
+     "real_price": "0.05590000000000000"
+    },
+    {
+     "created": "2026-10-11T19:11:36",
+     "hbd": 670,
+     "hive": 11995,
+     "order_price": {
+      "base": "0.670 HBD",
+      "quote": "11.995 HIVE"
+     },
+     "real_price": "0.05585660691954981"
+    },
+    {
+     "created": "2026-10-11T19:10:33",
+     "hbd": 1148,
+     "hive": 20554,
+     "order_price": {
+      "base": "1.148 HBD",
+      "quote": "20.554 HIVE"
+     },
+     "real_price": "0.05585287535272940"
+    },
+    {
+     "created": "2026-10-11T19:05:33",
+     "hbd": 761,
+     "hive": 13628,
+     "order_price": {
+      "base": "0.761 HBD",
+      "quote": "13.628 HIVE"
+     },
+     "real_price": "0.05584091576166716"
+    },
+    {
+     "created": "2026-10-11T19:00:03",
+     "hbd": 112,
+     "hive": 2006,
+     "order_price": {
+      "base": "0.112 HBD",
+      "quote": "2.006 HIVE"
+     },
+     "real_price": "0.05583250249252243"
+    },
+    {
+     "created": "2026-10-11T19:00:03",
+     "hbd": 112,
+     "hive": 2009,
+     "order_price": {
+      "base": "0.112 HBD",
+      "quote": "2.009 HIVE"
+     },
+     "real_price": "0.05574912891986063"
+    }
+   ]
+  },
+  "ticker": {
+   "hbd_volume": {
+    "amount": "2649301",
+    "nai": "@@000000013",
+    "precision": 3
+   },
+   "highest_bid": "0.05594053168703540",
+   "hive_volume": {
+    "amount": "47434997",
+    "nai": "@@000000021",
+    "precision": 3
+   },
+   "latest": "0.05601006012950972",
+   "lowest_ask": "0.05600003551603294",
+   "percent_change": "0.81810823311749403"
+  },
+  "top_witnesses": [
+   {
+    "available_witness_account_subsidies": 1208811,
+    "created": "2016-06-30T17:22:18",
+    "hardfork_time_vote": "2025-11-19T13:00:00",
+    "hardfork_version_vote": "1.28.0",
+    "hbd_exchange_rate": {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    "id": 9493,
+    "last_aslot": 110970431,
+    "last_confirmed_block_num": 110688587,
+    "last_hbd_exchange_update": "2026-10-11T19:21:12",
+    "last_work": "0000000048bf77f525731f28db7c1aa9ad853a475ccc78e71ea952a7782e5459",
+    "owner": "gtg",
+    "pow_worker": 0,
+    "props": {
+     "account_creation_fee": "3.000 HIVE",
+     "account_subsidy_budget": 797,
+     "account_subsidy_decay": 347321,
+     "hbd_interest_rate": 1000,
+     "maximum_block_size": 65536
+    },
+    "running_version": "1.28.8",
+    "signing_key": "STM8PFEEhF9g3PMZu9mu9vso56bzP6i4aMYM73aWL8CkcKi4LEGLR",
+    "total_missed": 992,
+    "url": "https://gtg.openhive.network",
+    "virtual_last_update": "1079581014732686397878373460",
+    "virtual_position": "99030879017724794388946554531607364073",
+    "virtual_scheduled_time": "1079582454078610161113198608",
+    "votes": "167611888094594226"
+   },
+   {
+    "available_witness_account_subsidies": 2148775,
+    "created": "2018-01-03T17:00:57",
+    "hardfork_time_vote": "2025-11-19T13:00:00",
+    "hardfork_version_vote": "1.28.0",
+    "hbd_exchange_rate": {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    "id": 14649,
+    "last_aslot": 110970440,
+    "last_confirmed_block_num": 110688596,
+    "last_hbd_exchange_update": "2026-10-11T18:42:03",
+    "last_work": "0000000000000000000000000000000000000000000000000000000000000000",
+    "owner": "ocd-witness",
+    "pow_worker": 0,
+    "props": {
+     "account_creation_fee": "3.000 HIVE",
+     "account_subsidy_budget": 797,
+     "account_subsidy_decay": 347321,
+     "hbd_interest_rate": 1200,
+     "maximum_block_size": 65536
+    },
+    "running_version": "1.28.7",
+    "signing_key": "STM82sVNpRXV86ARhL1mPoqjBTQUsdR5YwUg2dGAtJognb4cZveYH",
+    "total_missed": 1389,
+    "url": "https://hive.blog/hive-174578/@ocd/original-content-decentralized-hive-statement",
+    "virtual_last_update": "1079581014732686397878373460",
+    "virtual_position": "98790284873016969374189394981620833502",
+    "virtual_scheduled_time": "1079582459022953917149464378",
+    "votes": "167204673104050586"
+   },
+   {
+    "available_witness_account_subsidies": 2163626,
+    "created": "2016-03-30T00:04:33",
+    "hardfork_time_vote": "2025-11-19T13:00:00",
+    "hardfork_version_vote": "1.28.0",
+    "hbd_exchange_rate": {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    "id": 437,
+    "last_aslot": 110970432,
+    "last_confirmed_block_num": 110688588,
+    "last_hbd_exchange_update": "2026-10-11T19:09:51",
+    "last_work": "0000000df71896f1756d6a3456905da575407b4917d922042f72e076f586a2b4",
+    "owner": "blocktrades",
+    "pow_worker": 0,
+    "props": {
+     "account_creation_fee": "3.000 HIVE",
+     "account_subsidy_budget": 797,
+     "account_subsidy_decay": 347321,
+     "hbd_interest_rate": 1200,
+     "maximum_block_size": 65536
+    },
+    "running_version": "1.28.8",
+    "signing_key": "STM7ZReKWfMREwGQp4jDe8mxPXuLQLUro4WXks2s7rTzjAjpsGi3Y",
+    "total_missed": 3738,
+    "url": "https://blocktrades.us",
+    "virtual_last_update": "1079581014732686397878373460",
+    "virtual_position": "218286166982490010349978405503321671532",
+    "virtual_scheduled_time": "1079581774273289032943965664",
+    "votes": "160618404750461556"
+   },
+   {
+    "available_witness_account_subsidies": 1351625,
+    "created": "2018-10-27T22:28:12",
+    "hardfork_time_vote": "2025-11-19T13:00:00",
+    "hardfork_version_vote": "1.28.0",
+    "hbd_exchange_rate": {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    "id": 14798,
+    "last_aslot": 110970439,
+    "last_confirmed_block_num": 110688595,
+    "last_hbd_exchange_update": "2026-10-11T19:00:03",
+    "last_work": "0000000000000000000000000000000000000000000000000000000000000000",
+    "owner": "steempeak",
+    "pow_worker": 0,
+    "props": {
+     "account_creation_fee": "3.000 HIVE",
+     "account_subsidy_budget": 797,
+     "account_subsidy_decay": 347321,
+     "hbd_interest_rate": 1000,
+     "maximum_block_size": 65536
+    },
+    "running_version": "1.28.7",
+    "signing_key": "STM6aq8Ymd7NRVk2ry7buNHSFYCy5yGMKBXMZAa7hS7rtVL4VarGb",
+    "total_missed": 204,
+    "url": "https://peakd.com/@peakd",
+    "virtual_last_update": "1079581014732686397878373460",
+    "virtual_position": "18696581002571767319020307078998370778",
+    "virtual_scheduled_time": "1079583029351871565732578678",
+    "votes": "159626091266262206"
+   },
+   {
+    "available_witness_account_subsidies": 613115,
+    "created": "2016-07-26T21:59:42",
+    "hardfork_time_vote": "2025-11-19T13:00:00",
+    "hardfork_version_vote": "1.28.0",
+    "hbd_exchange_rate": {
+     "base": "0.056 HBD",
+     "quote": "1.000 HIVE"
+    },
+    "id": 10941,
+    "last_aslot": 110970430,
+    "last_confirmed_block_num": 110688586,
+    "last_hbd_exchange_update": "2026-10-11T19:19:36",
+    "last_work": "000000015f0920ee4927205053692add8fdc54aac705d556e5827ab49e7f23dd",
+    "owner": "arcange",
+    "pow_worker": 0,
+    "props": {
+     "account_creation_fee": "3.000 HIVE",
+     "account_subsidy_budget": 797,
+     "account_subsidy_decay": 347321,
+     "hbd_interest_rate": 1200,
+     "maximum_block_size": 65536
+    },
+    "running_version": "1.28.7",
+    "signing_key": "STM6wjYfYn728hR5yXNBS5GcMoACfYymKEWW1WFzDGiMaeo9qUKwH",
+    "total_missed": 908,
+    "url": "https://peakd.com/witness-category/@arcange/witness-update-202103",
+    "virtual_last_update": "1079581014732686397878373460",
+    "virtual_position": "18687564383315093289275785344439937551",
+    "virtual_scheduled_time": "1079583030380424790616090866",
+    "votes": "159549109902537154"
+   }
+  ]
+ },
+ "schema": "saos.jummper.hive-intel/1"
+}

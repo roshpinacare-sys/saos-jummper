@@ -1,0 +1,58 @@
+# HIVE-INTEL — saos-jummper's own read-only Hive probe (task 10-c, un-silence sweep)
+#
+# ROLE: jummper is the fleet's cross-chain notary; this keeps its eye on the
+# chain it plans to anchor to. Read-only public chain reads (network status,
+# internal market, witness feed) — ZERO keys, zero auth, zero broadcast.
+# The digest (state/hive-intel-latest.json) is the product.
+#
+# HONEST BILLING NOTE (measured org-wide since ~09-20): this is a PRIVATE repo
+# — Actions minutes are billing-walled; runs die at setup (0 steps, ~2s, empty
+# logs). That is the owner's billing decision, not a code failure. This
+# workflow is dispatch-ready so the notary's intel duty resumes the moment
+# minutes return (or via fleet-heal). No cron on purpose: a schedule that
+# cannot run is noise, not autonomy. Until then it runs anywhere with python3:
+#   python3 scripts/hive_probe.py --selftest && python3 scripts/hive_probe.py
+#
+# fail-open-honest: a red probe still commits its digest (a red probe is a
+# fact) and the job ends non-zero. אף-פעם לא מזויף-הצלחה.
+
+name: hive-intel
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hive-intel
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Selftest gate (mocked vectors, no network)
+        run: python3 scripts/hive_probe.py --selftest
+
+      - name: Live read-only probe (honest; failure is recorded, never hidden)
+        run: |
+          python3 scripts/hive_probe.py || PROBE_EXIT=$?
+          echo "PROBE_EXIT=${PROBE_EXIT:-0}" >> "$GITHUB_ENV"
+
+      - name: Commit the digest (probe-runner, rebase-before-push)
+        run: |
+          set -euo pipefail
+          if [ ! -s state/hive-intel-latest.json ]; then echo "no digest produced"; exit 1; fi
+          git config user.email "roshpinacare-sys@users.noreply.github.com"
+          git config user.name "jumpper-intel[bot]"
+          git pull --rebase origin main || true
+          git add state/hive-intel-latest.json
+          if git diff --cached --quiet; then echo "digest unchanged"; else git commit -m "hive-intel: read-only digest at $(date -u +%Y-%m-%dT%H:%M:%SZ)"; git push; fi
+
+      - name: Honest exit (0 = probe ok · 1 = red probe, digest still published)
+        run: exit "${PROBE_EXIT:-0}"

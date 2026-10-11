@@ -1,5 +1,25 @@
 # SAOS JUMPPER
 
+**ROLE (since 2026-10-11, task 10-c un-silence sweep):** the fleet's
+**cross-chain notary & read-only Hive intel unit**. Standing duties:
+- **Hive intel** — `scripts/hive_probe.py` (stdlib-only, zero keys, read-only)
+  watches the chain this notary plans to anchor to; digest lands in
+  `state/hive-intel-latest.json`. CI: `.github/workflows/hive-intel.yml`
+  (dispatch-only — this repo is private and the org Actions budget is
+  billing-walled since ~09-20; owner billing decision, not a code failure.
+  Revival path: dispatch the workflow or let fleet-heal do it once minutes
+  return — no further code work needed).
+- **Anchor conformance** — any future `saos-git-custody-v1` anchor this
+  notary broadcasts must pass the fleet conformance suite:
+  `anchor-baseline/conformance/` (vectors + runner, selftest green). The
+  `saos-dex.anchor.v1` path documented below stays a distinct protocol.
+
+**Why it was silenced:** the strongest engineering in its cluster (673 unit
+tests green) but its runtime lanes were parked by the org-wide Actions
+billing wall; anchoring stayed gated behind the capital-lane laws (STASIS,
+arm-files). The intel duty now runs without keys on any machine.
+
+---
 
 **Cross-chain batched proof notary.**
 

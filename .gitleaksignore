@@ -8,3 +8,10 @@ bca5a972bee53ada50a29c2f2e71fc989d443ac6:agent/vault/recovery-meta-2026-09-12.js
 # false-positive: synthetic test fixture (in-repo test data / self-test constant, not a real credential)
 bd5389390e429a641bd1dfb2ccf92240f109c25d:tests/test_hardening.py:generic-api-key:196
 tests/test_hardening.py:generic-api-key:198
+
+# triage 2026-10-12: signing_key fields = PUBLIC chain keys mirrored into intel state (zero private material)
+state/hive-intel-latest.json:generic-api-key:656
+state/hive-intel-latest.json:generic-api-key:688
+state/hive-intel-latest.json:generic-api-key:720
+state/hive-intel-latest.json:generic-api-key:752
+state/hive-intel-latest.json:generic-api-key:784

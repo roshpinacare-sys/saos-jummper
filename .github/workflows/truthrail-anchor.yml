@@ -46,8 +46,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -s state/truthrail-anchor-latest.json ]; then echo "no anchor produced"; exit 1; fi
-          git config user.email "roshpinacare-sys@users.noreply.github.com"
-          git config user.name "jumpper-notary[bot]"
+          git config user.email "326012154+roshpinacare-sys@users.noreply.github.com"
+          git config user.name "roshpinacare-sys"
           git pull --rebase origin main || true
           git add state/truthrail-anchor-latest.json
           if git diff --cached --quiet; then echo "anchor unchanged"; else git commit -m "truthrail-anchor: merkle anchor at $(date -u +%Y-%m-%dT%H:%M:%SZ)"; git push; fi
